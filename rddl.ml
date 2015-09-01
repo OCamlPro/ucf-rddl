@@ -10,78 +10,132 @@
 (*  version 2.1 of the License, or (at your option) any later version,  *)
 (*  with the OCaml static compilation exception.                        *)
 (*                                                                      *)
-(*  ocp-read is distributed in the hope that it will be useful,         *)
+(*  rddl is distributed in the hope that it will be useful,             *)
 (*  but WITHOUT ANY WARRANTY; without even the implied warranty of      *)
 (*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the       *)
 (*  GNU General Public License for more details.                        *)
 (*                                                                      *)
 (************************************************************************)
 
+(** Describes the set of user and device profiles supported by an app,
+    and the toplevel structure of its UI for each of these profiles.
+
+    A set of profiles is defined for the complete app, which describe
+    both device capabilities and user preferences (for instance: small
+    screen with high contrast, big screen without ads, etc.).
+
+    The UI is split into pages (for instance: a login page, a media
+    playback page or a settings page). Each page is implemented by
+    several views that correspond to a given profile (or several
+    ones). Views should be provided for all of the profiles.
+
+    A view is a tree of components and containers. It arranges
+    predefined elements (for instance a tool bar or a reflowable
+    succession) and a set of application specific components as
+    defined by the page it implements.
+
+    Each page defines required components and containers, which must
+    appear on every view of the page. It also defines optional ones,
+    which can appear in views, but are not mandatory. No other
+    component should appear in the views implementing the page. *)
+
+(** The toplevel definition. *)
 type ui =
   { pages : page table ;
-    profiles : context table }
+    (** The set of pages. *)
+    profiles : profile table
+    (** The set of supported profiles. *) }
 
+(** Definition of a page. *)
 and page =
   { views : view list ;
-    components : (component * flags) table ;
-    containers : (container * flags) table ;
-    sources : source table }
+    (** The list of views that implement this page. *)
+    components : component table ;
+    (** The set of identified components of the page. *)
+    containers : container table ;
+    (** The set of identified containers of the page. *)
+    sources : source table
+    (** External data sources whose disponibility may impact the UI. *) }
 
+(** Definition of a view. *)
 and view =
   { document : element ;
-    compatible_profiles : string list }
+    (** The root container or component. *)
+    compatible_profiles : profile handle list
+    (** The profiles to which this view belongs. *) }
 
+(** Container specific attributes. *)
 and container =
-  { extensible : bool }
+  { container_extensible : bool ;
+    (** Tells if the contents can be updated from the code.*)
+    container_priority : priority
+    (** The element's display priority. *) }
 
+(** Component specific attributes. *)
 and component =
-  { ratio : float range }
+  { component_aspect_ratio : float range ;
+    (** The aspect ratios supported by the code. *)
+    component_priority : priority
+    (** The element's display priority. *) }
 
-and flags =
-  | Required
-  | Hideable
+(** Discriminates between main and accessory elements. *)
+and priority =
+  (** Can be omitted in some views of the page. *)
   | Optional
+  (** Must be present in all views but can be scrolled out of sight. *)
+  | Hideable
+  (** Must be present in all views and displayed at all times. *)
+  | Required
 
+(** An external data source. *)
 and source =
+  (** A known host to use a predefined polling method. *)
   | Uri of string
+  (** A custom source that must be instanciated by the code. *)
   | Custom
 
-and 'a table =
-  (string * 'a) list
+(** A profile description. *)
+and profile =
+  { output : [ `textual | `simplified | `fancy ] range ;
+    interactivity : [ `view_only | `pointer | `single_touch | `multi_touch  ] ;
+    size : [ `display_width | `display_height | `device_width | `device_height ] * float range ;
+    aspect_ratio : [ `device | `display ] * float range (* width / height *) ;
+    resolution : float range (* dots per inch *) ;
+    contrast : [ `low | `normal | `high ] range ;
+    ink : [ `low | `normal | `high ] range ;
+    zoom : [ `low | `normal | `high ] range ;
+    connected : source handle list ;
+    bandwitdh : (source handle * int range) list (* kilobits per second *) }
 
-(** Rules to describe the context profiles. *)
-and context =
-  | And of context list
-  (** This rule applies if all its sub-rules apply. *)
-  | Or of context list
-  (** This rule applies if any of its sub-rules apply. *)
-  (* Capabilities *)
-  | Output of [ `textual | `simplified | `fancy ] range
-  | Interactivity of [ `view_only | `pointer | `single_touch | `multi_touch  ]
-  | Size of [ `display_width | `display_height | `device_width | `device_height ] * float range
-  | Aspect_ratio of [ `device | `display ] * float range (* width / height *)
-  | Resolution of float range (* dots per inch *)
-  (* Accessibility *)
-  | Contrast of [ `low | `normal | `high ] range
-  | Ink of [ `low | `normal | `high ] range
-  | Zoom of [ `low | `normal | `high ] range
-  (* TODO: colors *)
-  (* Environment *)
-  | Connected of source * bool
-  | Bandwitdh of source * int range (* kilobits per second *)
+(** The tree type of containers and components. *)
+and element =
+  | Vertical of element list * container handle option
+  | Horizontal of element list * container handle option
+  | Flow of element list * container handle option
+  | Menu of element list * container handle option
+  | Custom_container of element list * container handle
+  | Label of string * component handle option
+  | Custom_component of component handle
 
+
+(** An explicitly named ['a] node. *)
+and 'a handle =
+  { id : string ;
+    (** The machine readable name. *)
+    name : string ;
+    (** The human readable name / description. *)
+    resolved : 'a
+    (** The boxed value. *) }
+
+(** A set of named values. *)
+and 'a table = 'a handle list
+
+(** A range of ['a]s. [{ min = None ; max = None }] means any value. *)
 and 'a range =
   { min : 'a option ;
-    max : 'a option }
-
-and element =
-  | Vertical of element list * string option
-  | Horizontal of element list * string option
-  | Flow of element list * string option
-  | Menu of element list * string option
-  | Label of string * string option
-  | Custom_component of string
-  | Custom_container of element list * string
+    (** The inclusive minimum. *)
+    max : 'a option
+    (** The inclusive maximum. *) }
 
 (* Voir: material UI *)
 
