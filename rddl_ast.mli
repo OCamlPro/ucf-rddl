@@ -120,13 +120,11 @@ and three_steps_level = Low | Normal | High
 
 (** The tree type of containers and components. *)
 and element =
-  | Vertical of element list * container id option
-  | Horizontal of element list * container id option
-  | Flow of element list * container id option
-  | Menu of element list * container id option
-  | Custom_container of element list * container id
-  | Label of string * component id option
-  | Custom_component of component id
+  | Container of constructor * element list * container id option
+  | Component of constructor * component id
+
+(** The backend-dependent container/component kind. *)
+and constructor = string
 
 (** An identifier for a value of a given type. *)
 and 'a id = string

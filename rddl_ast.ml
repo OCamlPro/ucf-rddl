@@ -65,13 +65,10 @@ and interactivity_level = View_only | Pointer | Single_touch | Multi_touch
 and three_steps_level = Low | Normal | High
 
 and element =
-  | Vertical of element list * container id option
-  | Horizontal of element list * container id option
-  | Flow of element list * container id option
-  | Menu of element list * container id option
-  | Custom_container of element list * container id
-  | Label of string * component id option
-  | Custom_component of component id
+  | Container of constructor * element list * container id option
+  | Component of constructor * component id
+
+and constructor = string
 
 and 'a id = string
 and 'a table = ('a id * 'a) list
@@ -193,53 +190,20 @@ let element_encoding =
   mu "element" @@ fun element_encoding ->
   union
     [ case
-        (obj3
-           (req "type" (string_enum ["vertical", ()]))
+        (obj4
+           (req "type" (string_enum ["container", ()]))
+           (req "constructor" string)
            (req "children" (list element_encoding))
            (opt "id" (id_encoding container_encoding)))
-        (function Vertical (children, id) -> Some ((), children, id) | _ -> None)
-        (fun ((), children, id) -> Vertical (children, id)) ;
+        (function Container (constructor, children, id) -> Some ((), constructor, children, id) | _ -> None)
+        (fun ((), constructor, children, id) -> Container (constructor, children, id)) ;
       case
         (obj3
-           (req "type" (string_enum ["horizontal", ()]))
-           (req "children" (list element_encoding))
-           (opt "id" (id_encoding container_encoding)))
-        (function Horizontal (children, id) -> Some ((), children, id) | _ -> None)
-        (fun ((), children, id) -> Horizontal (children, id)) ;
-      case
-        (obj3
-           (req "type" (string_enum ["flow", ()]))
-           (req "children" (list element_encoding))
-           (opt "id" (id_encoding container_encoding)))
-        (function Flow (children, id) -> Some ((), children, id) | _ -> None)
-        (fun ((), children, id) -> Flow (children, id)) ;
-      case
-        (obj3
-           (req "type" (string_enum ["menu", ()]))
-           (req "children" (list element_encoding))
-           (opt "id" (id_encoding container_encoding)))
-        (function Menu (children, id) -> Some ((), children, id) | _ -> None)
-        (fun ((), children, id) -> Menu (children, id)) ;
-      case
-        (obj3
-           (req "type" (string_enum ["custom_container", ()]))
-           (req "children" (list element_encoding))
-           (req "id" (id_encoding container_encoding)))
-        (function Custom_container (children, id) -> Some ((), children, id) | _ -> None)
-        (fun ((), children, id) -> Custom_container (children, id)) ;
-      case
-        (obj3
-           (req "type" (string_enum ["label", ()]))
-           (dft "text" string "")
-           (opt "id" (id_encoding component_encoding)))
-        (function Label (text, id) -> Some ((), text, id) | _ -> None)
-        (fun ((), text, id) -> Label (text, id)) ;
-      case
-        (obj2
-           (req "type" (string_enum ["custom_component", ()]))
+           (req "type" (string_enum ["component", ()]))
+           (req "constructor" string)
            (req "id" (id_encoding component_encoding)))
-        (function Custom_component id -> Some ((), id) | _ -> None)
-        (fun ((), id) -> Custom_component id) ]
+        (function Component (constructor, id) -> Some ((), constructor, id) | _ -> None)
+        (fun ((), constructor, id) -> Component (constructor, id)) ]
 
 let view_encoding =
   conv
