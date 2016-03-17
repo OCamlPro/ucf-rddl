@@ -1,3 +1,5 @@
+(* RDDL - OCaml Abstract Syntax Tree and JSON encoding *)
+
 (************************************************************************)
 (*  RDDL - reactive design description language                         *)
 (*                                                                      *)
@@ -77,10 +79,22 @@ and 'a range =
   { min : 'a option ;
     max : 'a option }
 
-let empty_range =
+open Json_encoding
+
+let any =
   { min = None ; max = None }
 
-open Json_encoding
+let between min max =
+  { min = Some min ; max = Some max }
+
+let from min =
+  { min = Some min ; max = None }
+
+let upto max =
+  { min = None ; max = Some max }
+
+let only v =
+  { min = Some v ; max = Some v }
 
 let id_encoding value_encoding = string
 
@@ -130,7 +144,7 @@ let component_encoding =
     (fun (component_aspect_ratio, component_priority) ->
        { component_aspect_ratio ; component_priority }) @@
   obj2
-    (dft "aspect_ratio" (range_encoding float) empty_range)
+    (dft "aspect_ratio" (range_encoding float) any)
     (req "priority" priority_encoding)
 
 let profile_encoding =
@@ -161,27 +175,27 @@ let profile_encoding =
                 (string_enum [ "textual", Textual ;
                                "simplified", Simplified ;
                                "fancy", Fancy ]))
-             empty_range)
+             any)
           (dft "interactivity"
              (range_encoding
                 (string_enum [ "view only", View_only ;
                                "pointer", Pointer ;
                                "single touch", Single_touch ;
                                "multi touch", Multi_touch ]))
-             empty_range))
+             any))
        (obj5
-          (dft "displayWidth" (range_encoding int) empty_range)
-          (dft "displayAspectRatio" (range_encoding float) empty_range)
-          (dft "deviceWidth" (range_encoding int) empty_range)
-          (dft "deviceAspectRatio" (range_encoding float) empty_range)
-          (dft "resolution" (range_encoding float) empty_range)))
+          (dft "displayWidth" (range_encoding int) any)
+          (dft "displayAspectRatio" (range_encoding float) any)
+          (dft "deviceWidth" (range_encoding int) any)
+          (dft "deviceAspectRatio" (range_encoding float) any)
+          (dft "resolution" (range_encoding float) any)))
     (merge_objs
        (let three_steps_level_encoding =
           string_enum [ "low", Low ; "normal", Normal ; "high", High ] in
         obj3
-          (dft "contrast" (range_encoding three_steps_level_encoding) empty_range)
-          (dft "ink" (range_encoding three_steps_level_encoding) empty_range)
-          (dft "zoom" (range_encoding three_steps_level_encoding) empty_range))
+          (dft "contrast" (range_encoding three_steps_level_encoding) any)
+          (dft "ink" (range_encoding three_steps_level_encoding) any)
+          (dft "zoom" (range_encoding three_steps_level_encoding) any))
        (obj2
           (dft "connected" (list (id_encoding source_encoding)) [])
           (dft "bandwidth" (assoc (range_encoding int)) [])))

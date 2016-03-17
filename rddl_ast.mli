@@ -139,7 +139,20 @@ and 'a range =
     max : 'a option
     (** The inclusive maximum. *) }
 
-(** A polymorphic empty range *)
-val empty_range : 'a range
+(** The full range. *)
+val any : 'a range
 
+(** A range with only its lower limit defined. *)
+val from : 'a -> 'a range
+
+(** A range with only its upper limit defined. *)
+val upto : 'a -> 'a range
+
+(** A range with both limits defined. *)
+val between : 'a -> 'a -> 'a range
+
+(** A singleton range. *)
+val only : 'a -> 'a range
+
+(** The JSON encoding. *)
 val ui_encoding : ui Json_encoding.encoding
