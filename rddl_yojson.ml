@@ -1,3 +1,5 @@
+(* RDDL - IOs using Yojson *)
+
 (************************************************************************)
 (*  RDDL - reactive design description language - IOs using Yojson      *)
 (*                                                                      *)
@@ -27,7 +29,6 @@ let schema_to_file ~filename =
     match Yojson.Safe.pretty_to_channel fp json with
     | exception exn -> close_out fp ; raise exn
     | res -> close_out fp ; res
-    
 
 let to_file ~filename ui =
   let json =
