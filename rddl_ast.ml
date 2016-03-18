@@ -52,10 +52,11 @@ and profile =
   { output : output_level range ;
     interactivity : interactivity_level range ;
     display_width : int range ;
-    device_width : int range ;
+    physical_display_width : int range ;
     display_aspect_ratio : float range (* width / height *) ;
+    device_width : int range ;
+    physical_device_width : int range ;
     device_aspect_ratio : float range (* width / height *) ;
-    resolution : float range (* dots per inch *) ;
     contrast : three_steps_level range ;
     ink : three_steps_level range ;
     zoom : three_steps_level range ;
@@ -151,20 +152,24 @@ let profile_encoding =
   def "profile" @@
   conv
     (fun { output ; interactivity ;
-           display_width ; display_aspect_ratio ; device_width ; device_aspect_ratio ; resolution ;
+           display_width ; physical_display_width ; display_aspect_ratio ;
+           device_width ; physical_device_width ; device_aspect_ratio ;
            contrast ; ink ; zoom ;
            connected ; bandwitdh } ->
       (((output, interactivity),
-        (display_width, display_aspect_ratio, device_width, device_aspect_ratio, resolution)),
+        (display_width, physical_display_width, display_aspect_ratio,
+         device_width, physical_device_width, device_aspect_ratio)),
        ((contrast, ink, zoom),
         (connected, bandwitdh))))
     (fun
       (((output, interactivity),
-        (display_width, display_aspect_ratio, device_width, device_aspect_ratio, resolution)),
+        (display_width, physical_display_width, display_aspect_ratio,
+         device_width, physical_device_width, device_aspect_ratio)),
        ((contrast, ink, zoom),
         (connected, bandwitdh))) ->
       { output ; interactivity ;
-        display_width ; display_aspect_ratio ; device_width ; device_aspect_ratio ; resolution ;
+        display_width ; physical_display_width ; display_aspect_ratio ;
+        device_width ; physical_device_width ; device_aspect_ratio ;
         contrast ; ink ; zoom ;
         connected ; bandwitdh }) @@
   merge_objs
@@ -183,12 +188,13 @@ let profile_encoding =
                                "single touch", Single_touch ;
                                "multi touch", Multi_touch ]))
              any))
-       (obj5
+       (obj6
           (dft "displayWidth" (range_encoding int) any)
+          (dft "physicalDisplayWidth" (range_encoding int) any)
           (dft "displayAspectRatio" (range_encoding float) any)
           (dft "deviceWidth" (range_encoding int) any)
-          (dft "deviceAspectRatio" (range_encoding float) any)
-          (dft "resolution" (range_encoding float) any)))
+          (dft "physicalDeviceWidth" (range_encoding int) any)
+          (dft "deviceAspectRatio" (range_encoding float) any)))
     (merge_objs
        (let three_steps_level_encoding =
           string_enum [ "low", Low ; "normal", Normal ; "high", High ] in

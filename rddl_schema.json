@@ -1,0 +1,314 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "pages": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": { "$ref": "#/definitions/page" }
+    },
+    "profiles": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": { "$ref": "#/definitions/profile" }
+    }
+  },
+  "required": [ "profiles", "pages" ],
+  "definitions": {
+    "element": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": [ "component" ] },
+            "constructor": { "type": "string" },
+            "id": { "type": "string" }
+          },
+          "required": [ "id", "constructor", "type" ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": [ "container" ] },
+            "constructor": { "type": "string" },
+            "children": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/element" }
+            },
+            "id": { "type": "string" }
+          },
+          "required": [ "children", "constructor", "type" ]
+        }
+      ]
+    },
+    "page": {
+      "type": "object",
+      "properties": {
+        "views": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "document": { "$ref": "#/definitions/element" },
+              "profiles": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": [ "profiles", "document" ]
+          }
+        },
+        "components": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "aspect_ratio": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "min": { "type": "number" },
+                      "max": { "type": "number" }
+                    }
+                  },
+                  { "type": "number" }
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [ "optional", "hideable", "required" ]
+              }
+            },
+            "required": [ "priority" ]
+          }
+        },
+        "containers": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "extensible": { "type": "boolean" },
+              "priority": {
+                "type": "string",
+                "enum": [ "optional", "hideable", "required" ]
+              }
+            },
+            "required": [ "priority" ]
+          }
+        },
+        "sources": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": { "$ref": "#/definitions/source" }
+        }
+      },
+      "required": [ "views" ]
+    },
+    "profile": {
+      "type": "object",
+      "properties": {
+        "output": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "string",
+                  "enum": [ "textual", "simplified", "fancy" ]
+                },
+                "max": {
+                  "type": "string",
+                  "enum": [ "textual", "simplified", "fancy" ]
+                }
+              }
+            },
+            {
+              "type": "string",
+              "enum": [ "textual", "simplified", "fancy" ]
+            }
+          ]
+        },
+        "interactivity": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "string",
+                  "enum": [
+                    "view only", "pointer", "single touch", "multi touch"
+                  ]
+                },
+                "max": {
+                  "type": "string",
+                  "enum": [
+                    "view only", "pointer", "single touch", "multi touch"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "string",
+              "enum": [
+                "view only", "pointer", "single touch", "multi touch"
+              ]
+            }
+          ]
+        },
+        "displayWidth": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": { "type": "integer" },
+                "max": { "type": "integer" }
+              }
+            },
+            { "type": "integer" }
+          ]
+        },
+        "physicalDisplayWidth": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": { "type": "integer" },
+                "max": { "type": "integer" }
+              }
+            },
+            { "type": "integer" }
+          ]
+        },
+        "displayAspectRatio": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            },
+            { "type": "number" }
+          ]
+        },
+        "deviceWidth": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": { "type": "integer" },
+                "max": { "type": "integer" }
+              }
+            },
+            { "type": "integer" }
+          ]
+        },
+        "physicalDeviceWidth": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": { "type": "integer" },
+                "max": { "type": "integer" }
+              }
+            },
+            { "type": "integer" }
+          ]
+        },
+        "deviceAspectRatio": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            },
+            { "type": "number" }
+          ]
+        },
+        "contrast": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "string",
+                  "enum": [ "low", "normal", "high" ]
+                },
+                "max": {
+                  "type": "string",
+                  "enum": [ "low", "normal", "high" ]
+                }
+              }
+            },
+            { "type": "string", "enum": [ "low", "normal", "high" ] }
+          ]
+        },
+        "ink": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "string",
+                  "enum": [ "low", "normal", "high" ]
+                },
+                "max": {
+                  "type": "string",
+                  "enum": [ "low", "normal", "high" ]
+                }
+              }
+            },
+            { "type": "string", "enum": [ "low", "normal", "high" ] }
+          ]
+        },
+        "zoom": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "string",
+                  "enum": [ "low", "normal", "high" ]
+                },
+                "max": {
+                  "type": "string",
+                  "enum": [ "low", "normal", "high" ]
+                }
+              }
+            },
+            { "type": "string", "enum": [ "low", "normal", "high" ] }
+          ]
+        },
+        "connected": { "type": "array", "items": { "type": "string" } },
+        "bandwidth": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "min": { "type": "integer" },
+                  "max": { "type": "integer" }
+                }
+              },
+              { "type": "integer" }
+            ]
+          }
+        }
+      }
+    },
+    "source": {
+      "oneOf": [
+        { "type": "string", "enum": [ "custom" ] },
+        {
+          "type": "object",
+          "properties": { "uri": { "type": "string" } },
+          "required": [ "uri" ]
+        }
+      ]
+    }
+  }
+}

@@ -21,5 +21,6 @@
 val current : unit -> Rddl_ast.profile
 
 (** Register a callback to trigger whenever the current profile changes.
+    Called initially with the {!current} profile.
     Returns the associated unregistration function. *)
-val on_update : (unit -> Rddl_ast.profile) -> (unit -> unit)
+val on_update : (Rddl_ast.profile -> unit) -> (unit -> unit)

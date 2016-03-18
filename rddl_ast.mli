@@ -99,10 +99,11 @@ and profile =
   { output : output_level range ;
     interactivity : interactivity_level range ;
     display_width : int range ;
-    device_width : int range ;
+    physical_display_width : int range ;
     display_aspect_ratio : float range (* width / height *) ;
+    device_width : int range ;
+    physical_device_width : int range ;
     device_aspect_ratio : float range (* width / height *) ;
-    resolution : float range (* dots per inch *) ;
     contrast : three_steps_level range ;
     ink : three_steps_level range ;
     zoom : three_steps_level range ;

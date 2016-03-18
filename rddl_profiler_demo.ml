@@ -59,30 +59,32 @@ let pretty_print_profile profile =
      output = %a ;@,\
      interactivity = %a ;@,\
      display_width = %a ;@,\
-     device_width = %a ;@,\
+     physical_display_width = %a ;@,\
      display_aspect_ratio = %a ;@,\
+     device_width = %a ;@,\
+     physical_device_width = %a ;@,\
      device_aspect_ratio = %a ;@,\
-     resolution = %a ;@,\
      contrast = %a ;@,\
      ink = %a ;@,\
      zoom = %a }@]"
     (pp_range pp_output_level) profile.output
     (pp_range pp_interactivity_level) profile.interactivity
     (pp_range (fun ppf -> fprintf ppf "%d")) profile.display_width
-    (pp_range (fun ppf -> fprintf ppf "%d")) profile.device_width
+    (pp_range (fun ppf -> fprintf ppf "%d")) profile.physical_display_width
     (pp_range (fun ppf -> fprintf ppf "%.3f")) profile.display_aspect_ratio
+    (pp_range (fun ppf -> fprintf ppf "%d")) profile.device_width
+    (pp_range (fun ppf -> fprintf ppf "%d")) profile.physical_device_width
     (pp_range (fun ppf -> fprintf ppf "%.3f")) profile.device_aspect_ratio
-    (pp_range (fun ppf -> fprintf ppf "%.3f")) profile.resolution
     (pp_range pp_three_steps_level) profile.contrast
     (pp_range pp_three_steps_level) profile.ink
     (pp_range pp_three_steps_level) profile.zoom
 
 let () =
-  let output text =
-    Js.Opt.iter
-      (Dom_html.window##document##querySelector (Js.string "#output"))
-      (fun elt ->
-         let text = Dom_html.window##document##createTextNode (Js.string text) in
-         elt##innerHTML <- Js.string "" ;
-         ignore (elt##appendChild ((text :> Dom.node Js.t)))) in
-  output (pretty_print_profile (Rddl_profiler.current ()))
+  ignore @@ Rddl_profiler.on_update @@ fun profile ->
+  let text = pretty_print_profile profile in
+  Js.Opt.iter
+    (Dom_html.window##document##querySelector (Js.string "#output"))
+    (fun elt ->
+       let text = Dom_html.window##document##createTextNode (Js.string text) in
+       elt##innerHTML <- Js.string "" ;
+       ignore (elt##appendChild ((text :> Dom.node Js.t))))

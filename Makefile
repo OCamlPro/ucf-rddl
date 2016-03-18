@@ -1,8 +1,8 @@
 MLS = rddl_ast.ml rddl_yojson.ml rddl_profiler.ml
 MLIS = rddl_ast.ml rddl_yojson.mli rddl_profiler.mli
 PACKAGES = yojson ocplib-json-typed
-WITH_JS_PACKAGE = rddl_profiler_demo.byte
-WITH_JS_SYNTAX = rddl_profiler_demo.cmo
+WITH_JS_PACKAGE = rddl_profiler_demo.byte rddl_client.cma
+WITH_JS_SYNTAX = rddl_profiler.cmo rddl_profiler_demo.cmo
 
 OPTIONS = $(patsubst %, -package %, $(PACKAGES))
 $(WITH_JS_PACKAGE): PACKAGES+=js_of_ocaml
@@ -21,7 +21,7 @@ rddl_profiler_demo.byte: rddl_client.cma rddl_profiler_demo.cmo
 rddl.cmxa: rddl_ast.cmx rddl_yojson.cmx
 	ocamlfind ocamlopt $(OPTIONS) $^ -a -o $@
 
-rddl.cma: rddl_ast.cmo rddl_yojson.cmo rddl_profiler.cmo
+rddl.cma: rddl_ast.cmo rddl_yojson.cmo
 	ocamlfind ocamlc $(OPTIONS) $^ -a -o $@
 
 rddl_client.cma: rddl.cma rddl_profiler.cmo
