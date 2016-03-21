@@ -19,15 +19,23 @@
 
 open Rddl_ast
 
-let neutral =
+(* state detection ******************************************************)
+
+let build_state
+    ~display_width
+    ~physical_display_width
+    ~display_aspect_ratio
+    ~device_width
+    ~physical_device_width
+    ~device_aspect_ratio =
   { output = only Fancy ;
     interactivity = between Pointer Multi_touch ;
-    display_width = from 0 ;
-    physical_display_width = from 0 ;
-    display_aspect_ratio = any ;
-    device_width = from 0 ;
-    physical_device_width = from 0 ;
-    device_aspect_ratio = any ;
+    display_width = only display_width ;
+    physical_display_width = only physical_display_width ;
+    display_aspect_ratio = only display_aspect_ratio ;
+    device_width = only device_width ;
+    physical_device_width = only physical_device_width ;
+    device_aspect_ratio = only device_aspect_ratio ;
     contrast = only Normal ;
     ink = only Normal ;
     zoom = only Normal ;
@@ -41,7 +49,7 @@ end
 
 let window = (Js.Unsafe.coerce Dom_html.window :> with_devicePixelRatio Js.t)
 
-let detect () =
+let window_state () =
   let device_pixel_ratio =
     Js.Optdef.case
       (window##devicePixelRatio)
@@ -71,38 +79,78 @@ let detect () =
       window##document##documentElement##clientHeight in
   let display_aspect_ratio =
     float display_width /. float display_height in
-  { neutral with
-    display_width = only display_width ;
-    physical_display_width = only (unapply_device_pixel_ratio display_width) ;
-    display_aspect_ratio = only display_aspect_ratio ;
-    device_width = only device_width ;
-    physical_device_width = only (unapply_device_pixel_ratio device_width) ;
-    device_aspect_ratio = only device_aspect_ratio }
+  build_state
+    ~display_width
+    ~physical_display_width: (unapply_device_pixel_ratio display_width)
+    ~display_aspect_ratio
+    ~device_width
+    ~physical_device_width: (unapply_device_pixel_ratio device_width)
+    ~device_aspect_ratio
 
-let current = ref (detect ())
-let observers = Hashtbl.create 10
+(* update monitoring ****************************************************)
 
-let update () =
-  let profile = detect () in
-  if profile <> !current then begin
-    current := profile ;
-    Hashtbl.iter (fun _ cb -> cb profile) observers
-  end
+type updates =
+  { state : profile ref ;
+    stop : unit -> unit ;
+    listeners : ([ `Stop | `Update of profile ] -> unit) list ref }
 
-let current () = !current
-
-let () =
+let window =
+  let state = ref (window_state ()) in
+  let listeners = ref [] in
+  let stop () = List.iter (fun cb -> cb `Stop) !listeners in
+  let update () =
+    state := window_state () ;
+    let pre = !listeners in
+    listeners := [] ;
+    List.iter (fun cb -> cb (`Update !state)) pre in
   ignore
     (Dom_events.listen
        ~capture:true window Dom_events.Typ.resize
-       (fun _ _ -> update () ; true))
+       (fun _ _ -> ignore (update ()) (* FIXME: mutex *) ; true)) ;
+  { state ; stop ; listeners }
 
-let on_update =
-  let last_id = ref 0 in
-  fun cb ->
-    let id = !last_id in
-    incr last_id ;
-    Hashtbl.add observers id cb ;
-    cb (current ()) ;
-    fun () ->
-      Hashtbl.remove observers id
+(* update monitoring ****************************************************)
+
+let state { state } = !state
+
+let stop { stop } = stop ()
+
+let wait_next_update { listeners } =
+  let t, u = Lwt.task () in
+  let cb = function
+    | `Stop -> Lwt.cancel t
+    | `Update profile -> Lwt.wakeup u profile in
+  listeners := cb :: !listeners ;
+  t
+
+let on_update { listeners ; state } body =
+  let open Lwt.Infix in
+  let last = ref (`Some !state) in
+  let waiter = ref (snd (Lwt.task ())) in
+  let rec cb () = function
+    | `Stop -> last := `Stop
+    | `Update profile ->
+      last := `Some profile ;
+      listeners := cb () :: !listeners ;
+      Lwt.wakeup !waiter () in
+  listeners := cb () :: !listeners ;
+  let rec loop () =
+    match !last with
+    | `Stop -> Lwt.return ()
+    | `None ->
+      let t, u = Lwt.task () in
+      waiter := u ;
+      t >>= loop
+    | `Some profile ->
+      last := `None ;
+      body profile >>= fun () ->
+      loop () in
+  Lwt.async loop
+
+(* changes monitoring ***************************************************)
+
+type changes
+let wait_next_change _ = assert false
+let on_change _ = assert false
+let selection _ = assert false
+let changes _ = assert false

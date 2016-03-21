@@ -32,28 +32,18 @@ let pretty_print_profile profile =
     | { min = None ; max = Some max } ->
       fprintf ppf "upto %a" pp max in
   let pp_output_level ppf = function
-    | Textual ->
-      fprintf ppf "Textual"
-    | Simplified ->
-      fprintf ppf "Simplified"
-    | Fancy ->
-      fprintf ppf "Fancy" in
+    | Textual -> fprintf ppf "Textual"
+    | Simplified -> fprintf ppf "Simplified"
+    | Fancy -> fprintf ppf "Fancy" in
   let pp_interactivity_level ppf = function
-    | View_only ->
-      fprintf ppf "View_only"
-    | Pointer ->
-      fprintf ppf "Pointer"
-    | Single_touch ->
-      fprintf ppf "Single_touch"
-    | Multi_touch ->
-      fprintf ppf "Multi_touch" in
+    | View_only -> fprintf ppf "View_only"
+    | Pointer -> fprintf ppf "Pointer"
+    | Single_touch -> fprintf ppf "Single_touch"
+    | Multi_touch -> fprintf ppf "Multi_touch" in
   let pp_three_steps_level ppf = function
-    | Low ->
-      fprintf ppf "Low"
-    | Normal ->
-      fprintf ppf "Normal"
-    | High ->
-      fprintf ppf "High" in
+    | Low -> fprintf ppf "Low"
+    | Normal -> fprintf ppf "Normal"
+    | High -> fprintf ppf "High" in
   asprintf
     "@[<v 2>{ \
      output = %a ;@,\
@@ -80,11 +70,12 @@ let pretty_print_profile profile =
     (pp_range pp_three_steps_level) profile.zoom
 
 let () =
-  ignore @@ Rddl_profiler.on_update @@ fun profile ->
+  Rddl_profiler.on_update Rddl_profiler.window @@ fun profile ->
   let text = pretty_print_profile profile in
   Js.Opt.iter
     (Dom_html.window##document##querySelector (Js.string "#output"))
     (fun elt ->
        let text = Dom_html.window##document##createTextNode (Js.string text) in
        elt##innerHTML <- Js.string "" ;
-       ignore (elt##appendChild ((text :> Dom.node Js.t))))
+       ignore (elt##appendChild ((text :> Dom.node Js.t)))) ;
+  Lwt.return ()
