@@ -18,6 +18,15 @@
 (************************************************************************)
 
 open Rddl_ast
+open Lwt.Infix
+
+(* profile merging ******************************************************)
+
+let merge pa pb =
+  failwith "TODO"
+
+let compatible pa pb =
+  failwith "TODO"
 
 (* state detection ******************************************************)
 
@@ -106,7 +115,7 @@ let window =
   ignore
     (Dom_events.listen
        ~capture:true window Dom_events.Typ.resize
-       (fun _ _ -> ignore (update ()) (* FIXME: mutex *) ; true)) ;
+       (fun _ _ -> ignore (update ()) ; true)) ;
   { state ; stop ; listeners }
 
 (* update monitoring ****************************************************)
@@ -124,22 +133,23 @@ let wait_next_update { listeners } =
   t
 
 let on_update { listeners ; state } body =
-  let open Lwt.Infix in
   let last = ref (`Some !state) in
-  let waiter = ref (snd (Lwt.task ())) in
+  let waiter = ref (Lwt.task ()) in
   let rec cb () = function
-    | `Stop -> last := `Stop
+    | `Stop ->
+      Lwt.cancel (fst !waiter) ;
+      last := `Stop
     | `Update profile ->
       last := `Some profile ;
       listeners := cb () :: !listeners ;
-      Lwt.wakeup !waiter () in
+      Lwt.wakeup (snd !waiter) () in
   listeners := cb () :: !listeners ;
   let rec loop () =
     match !last with
     | `Stop -> Lwt.return ()
     | `None ->
       let t, u = Lwt.task () in
-      waiter := u ;
+      waiter := (t, u) ;
       t >>= loop
     | `Some profile ->
       last := `None ;
@@ -149,8 +159,42 @@ let on_update { listeners ; state } body =
 
 (* changes monitoring ***************************************************)
 
-type changes
-let wait_next_change _ = assert false
-let on_change _ = assert false
-let selection _ = assert false
-let changes _ = assert false
+type changes =
+  { updates : updates ;
+    current : profile id ref ;
+    table : profile table }
+
+let selection { updates ; current ; table} =
+  merge (List.assoc !current table) (state updates)
+
+let find_profile profile table =
+  try
+    fst @@ List.find
+      (fun (id, rprofile) -> compatible profile rprofile)
+      table
+  with Not_found ->
+    failwith "no compatible profile found"
+
+let changes updates table =
+  { updates ; table ;
+    current = ref (find_profile (state updates) table) }
+
+let on_change ({ updates ; current ; table } as changes) cb =
+  on_update updates @@ fun profile ->
+  let new_id = find_profile profile table in
+  if !current <> new_id then begin
+    current := new_id ;
+    cb (!current, selection changes)
+  end else
+    Lwt.return ()
+
+let wait_next_change ({ updates ; current ; table } as changes) =
+  let rec loop () =
+    wait_next_update updates >>= fun profile ->
+    let new_id = find_profile profile table in
+    if !current <> new_id then begin
+      current := new_id ;
+      Lwt.return (!current, selection changes)
+    end else
+      loop () in
+  loop ()
