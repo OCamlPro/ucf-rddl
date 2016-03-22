@@ -46,3 +46,4 @@ rddl_client.cma: rddl.cma rddl_profiler.cmo
 
 clean:
 	-rm -f *.cm* rddl *~ *.o *.a *.dll *.dylib *.so
+	-rm -f rddl_profiler_demo.js rddl_profiler_demo.byte
