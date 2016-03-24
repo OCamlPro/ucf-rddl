@@ -17,9 +17,10 @@
 (*                                                                      *)
 (************************************************************************)
 
+open Rddl_ast
+
 let pretty_print_profile profile =
   let open Format in
-  let open Rddl_ast in
   let pp_range pp ppf = function
     | { min = None ; max = None } ->
       fprintf ppf "any"
@@ -69,9 +70,36 @@ let pretty_print_profile profile =
     (pp_range pp_three_steps_level) profile.ink
     (pp_range pp_three_steps_level) profile.zoom
 
+let profiles =
+  let generic =
+    { output = any ;
+      interactivity = any ;
+      display_width = any ;
+      physical_display_width = any ;
+      display_aspect_ratio = any ;
+      device_width = any ;
+      physical_device_width = any ;
+      device_aspect_ratio = any ;
+      contrast = any ;
+      ink = any ;
+      zoom = any ;
+      connected = [] ;
+      bandwidth = [] } in
+  [ "small", { generic with display_width = upto 400 } ;
+    "medium", { generic with display_width = between 401 768 } ;
+    "large", { generic with display_width = from 769 } ]
+
 let () =
-  Rddl_profiler.on_update Rddl_profiler.window @@ fun profile ->
-  let text = pretty_print_profile profile in
+  let changes = Rddl_profiler.changes Rddl_profiler.window profiles in
+  Rddl_profiler.on_change changes @@ fun (id, profile) ->
+  let text =
+    List.fold_left
+      (fun acc (pid, _) ->
+         if pid = id then
+           acc ^"\n> " ^ pid
+         else
+           acc ^"\n  " ^ pid)
+      (pretty_print_profile profile ^ "\n") profiles in
   Js.Opt.iter
     (Dom_html.window##document##querySelector (Js.string "#output"))
     (fun elt ->
