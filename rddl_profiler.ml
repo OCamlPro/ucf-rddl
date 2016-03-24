@@ -22,11 +22,92 @@ open Lwt.Infix
 
 (* profile merging ******************************************************)
 
-let merge pa pb =
-  failwith "TODO"
+let wellformed p =
+  let wellformed_range = function
+    | { min = None } | { max = None } -> true
+    | { min = Some min ; max = Some max } -> min <= max in
+  wellformed_range p.output &&
+  wellformed_range p.interactivity &&
+  wellformed_range p.display_width &&
+  wellformed_range p.physical_display_width &&
+  wellformed_range p.display_aspect_ratio &&
+  wellformed_range p.device_width &&
+  wellformed_range p.physical_device_width &&
+  wellformed_range p.device_aspect_ratio &&
+  wellformed_range p.contrast &&
+  wellformed_range p.ink &&
+  wellformed_range p.zoom &&
+  p.connected = [] &&
+  p.bandwidth = []
+
+let meet pa pb =
+  assert (wellformed pa) ;
+  assert (wellformed pb) ;
+  let meet_range ra rb =
+    { min = begin match ra.min, rb.min with
+          | Some mina, Some minb -> Some (max mina minb)
+          | Some m, None | None, Some m -> Some m
+          | None, None -> None
+        end ;
+      max = begin match ra.max, rb.max with
+        | Some maxa, Some maxb -> Some (min maxa maxb)
+        | Some m, None | None, Some m -> Some m
+        | None, None -> None
+      end } in
+  let result =
+    { output =
+        meet_range pa.output pb.output ;
+      interactivity =
+        meet_range pa.interactivity pb.interactivity ;
+      display_width =
+        meet_range pa.display_width pb.display_width ;
+      physical_display_width =
+        meet_range pa.physical_display_width pb.physical_display_width ;
+      display_aspect_ratio =
+        meet_range pa.display_aspect_ratio pb.display_aspect_ratio ;
+      device_width =
+        meet_range pa.device_width pb.device_width ;
+      physical_device_width =
+        meet_range pa.physical_device_width pb.physical_device_width ;
+      device_aspect_ratio =
+        meet_range pa.device_aspect_ratio pb.device_aspect_ratio ;
+      contrast =
+        meet_range pa.contrast pb.contrast ;
+      ink =
+        meet_range pa.ink pb.ink ;
+      zoom =
+        meet_range pa.zoom pb.zoom ;
+      connected = [] ;
+      bandwidth = [] } in
+  assert (wellformed result) ;
+  result
 
 let compatible pa pb =
-  failwith "TODO"
+  assert (wellformed pa) ;
+  assert (wellformed pb) ;
+  let compatible_range ra rb =
+    let min = match ra.min, rb.min with
+      | Some mina, Some minb -> Some (max mina minb)
+      | Some m, None | None, Some m -> Some m
+      | None, None -> None
+    and max = match ra.max, rb.max with
+      | Some maxa, Some maxb -> Some (min maxa maxb)
+      | Some m, None | None, Some m -> Some m
+      | None, None -> None in
+    match min, max with
+    | Some min, Some max -> min <= max
+    | _ -> true in
+  compatible_range pa.output pb.output &&
+  compatible_range pa.interactivity pb.interactivity &&
+  compatible_range pa.display_width pb.display_width &&
+  compatible_range pa.physical_display_width pb.physical_display_width &&
+  compatible_range pa.display_aspect_ratio pb.display_aspect_ratio &&
+  compatible_range pa.device_width pb.device_width &&
+  compatible_range pa.physical_device_width pb.physical_device_width &&
+  compatible_range pa.device_aspect_ratio pb.device_aspect_ratio &&
+  compatible_range pa.contrast pb.contrast &&
+  compatible_range pa.ink pb.ink &&
+  compatible_range pa.zoom pb.zoom
 
 (* state detection ******************************************************)
 
@@ -37,7 +118,7 @@ let build_state
     ~device_width
     ~physical_device_width
     ~device_aspect_ratio =
-  { output = only Fancy ;
+  { output = any ;
     interactivity = between Pointer Multi_touch ;
     display_width = only display_width ;
     physical_display_width = only physical_display_width ;
@@ -45,11 +126,11 @@ let build_state
     device_width = only device_width ;
     physical_device_width = only physical_device_width ;
     device_aspect_ratio = only device_aspect_ratio ;
-    contrast = only Normal ;
-    ink = only Normal ;
-    zoom = only Normal ;
+    contrast = any ;
+    ink = any ;
+    zoom = any ;
     connected = [] ;
-    bandwitdh = [] }
+    bandwidth = [] }
 
 class type with_devicePixelRatio = object
   inherit Dom_html.window
@@ -165,7 +246,7 @@ type changes =
     table : profile table }
 
 let selection { updates ; current ; table} =
-  merge (List.assoc !current table) (state updates)
+  !current, meet (List.assoc !current table) (state updates)
 
 let find_profile profile table =
   try
@@ -180,11 +261,13 @@ let changes updates table =
     current = ref (find_profile (state updates) table) }
 
 let on_change ({ updates ; current ; table } as changes) cb =
+  let first = ref true in
   on_update updates @@ fun profile ->
   let new_id = find_profile profile table in
-  if !current <> new_id then begin
+  if !first || !current <> new_id then begin
     current := new_id ;
-    cb (!current, selection changes)
+    first := false ;
+    cb (selection changes)
   end else
     Lwt.return ()
 
@@ -194,7 +277,7 @@ let wait_next_change ({ updates ; current ; table } as changes) =
     let new_id = find_profile profile table in
     if !current <> new_id then begin
       current := new_id ;
-      Lwt.return (!current, selection changes)
+      Lwt.return (selection changes)
     end else
       loop () in
   loop ()
