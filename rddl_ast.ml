@@ -61,7 +61,7 @@ and profile =
     ink : three_steps_level range ;
     zoom : three_steps_level range ;
     connected : source id list ;
-    bandwitdh : (source id * int range) list (* kilobits per second *) }
+    bandwidth : (source id * int range) list (* kilobits per second *) }
 
 and output_level = Textual | Simplified | Fancy
 and interactivity_level = View_only | Pointer | Single_touch | Multi_touch
@@ -155,23 +155,23 @@ let profile_encoding =
            display_width ; physical_display_width ; display_aspect_ratio ;
            device_width ; physical_device_width ; device_aspect_ratio ;
            contrast ; ink ; zoom ;
-           connected ; bandwitdh } ->
+           connected ; bandwidth } ->
       (((output, interactivity),
         (display_width, physical_display_width, display_aspect_ratio,
          device_width, physical_device_width, device_aspect_ratio)),
        ((contrast, ink, zoom),
-        (connected, bandwitdh))))
+        (connected, bandwidth))))
     (fun
       (((output, interactivity),
         (display_width, physical_display_width, display_aspect_ratio,
          device_width, physical_device_width, device_aspect_ratio)),
        ((contrast, ink, zoom),
-        (connected, bandwitdh))) ->
+        (connected, bandwidth))) ->
       { output ; interactivity ;
         display_width ; physical_display_width ; display_aspect_ratio ;
         device_width ; physical_device_width ; device_aspect_ratio ;
         contrast ; ink ; zoom ;
-        connected ; bandwitdh }) @@
+        connected ; bandwidth }) @@
   merge_objs
     (merge_objs
        (obj2

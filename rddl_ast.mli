@@ -108,7 +108,7 @@ and profile =
     ink : three_steps_level range ;
     zoom : three_steps_level range ;
     connected : source id list ;
-    bandwitdh : (source id * int range) list (* kilobits per second *) }
+    bandwidth : (source id * int range) list (* kilobits per second *) }
 
 (** Output selector *)
 and output_level = Textual | Simplified | Fancy
