@@ -18,96 +18,8 @@
 (************************************************************************)
 
 open Rddl_ast
+open Rddl_profile
 open Lwt.Infix
-
-(* profile merging ******************************************************)
-
-let wellformed p =
-  let wellformed_range = function
-    | { min = None } | { max = None } -> true
-    | { min = Some min ; max = Some max } -> min <= max in
-  wellformed_range p.output &&
-  wellformed_range p.interactivity &&
-  wellformed_range p.display_width &&
-  wellformed_range p.physical_display_width &&
-  wellformed_range p.display_aspect_ratio &&
-  wellformed_range p.device_width &&
-  wellformed_range p.physical_device_width &&
-  wellformed_range p.device_aspect_ratio &&
-  wellformed_range p.contrast &&
-  wellformed_range p.ink &&
-  wellformed_range p.zoom &&
-  p.connected = [] &&
-  p.bandwidth = []
-
-let meet pa pb =
-  assert (wellformed pa) ;
-  assert (wellformed pb) ;
-  let meet_range ra rb =
-    { min = begin match ra.min, rb.min with
-          | Some mina, Some minb -> Some (max mina minb)
-          | Some m, None | None, Some m -> Some m
-          | None, None -> None
-        end ;
-      max = begin match ra.max, rb.max with
-        | Some maxa, Some maxb -> Some (min maxa maxb)
-        | Some m, None | None, Some m -> Some m
-        | None, None -> None
-      end } in
-  let result =
-    { output =
-        meet_range pa.output pb.output ;
-      interactivity =
-        meet_range pa.interactivity pb.interactivity ;
-      display_width =
-        meet_range pa.display_width pb.display_width ;
-      physical_display_width =
-        meet_range pa.physical_display_width pb.physical_display_width ;
-      display_aspect_ratio =
-        meet_range pa.display_aspect_ratio pb.display_aspect_ratio ;
-      device_width =
-        meet_range pa.device_width pb.device_width ;
-      physical_device_width =
-        meet_range pa.physical_device_width pb.physical_device_width ;
-      device_aspect_ratio =
-        meet_range pa.device_aspect_ratio pb.device_aspect_ratio ;
-      contrast =
-        meet_range pa.contrast pb.contrast ;
-      ink =
-        meet_range pa.ink pb.ink ;
-      zoom =
-        meet_range pa.zoom pb.zoom ;
-      connected = [] ;
-      bandwidth = [] } in
-  assert (wellformed result) ;
-  result
-
-let compatible pa pb =
-  assert (wellformed pa) ;
-  assert (wellformed pb) ;
-  let compatible_range ra rb =
-    let min = match ra.min, rb.min with
-      | Some mina, Some minb -> Some (max mina minb)
-      | Some m, None | None, Some m -> Some m
-      | None, None -> None
-    and max = match ra.max, rb.max with
-      | Some maxa, Some maxb -> Some (min maxa maxb)
-      | Some m, None | None, Some m -> Some m
-      | None, None -> None in
-    match min, max with
-    | Some min, Some max -> min <= max
-    | _ -> true in
-  compatible_range pa.output pb.output &&
-  compatible_range pa.interactivity pb.interactivity &&
-  compatible_range pa.display_width pb.display_width &&
-  compatible_range pa.physical_display_width pb.physical_display_width &&
-  compatible_range pa.display_aspect_ratio pb.display_aspect_ratio &&
-  compatible_range pa.device_width pb.device_width &&
-  compatible_range pa.physical_device_width pb.physical_device_width &&
-  compatible_range pa.device_aspect_ratio pb.device_aspect_ratio &&
-  compatible_range pa.contrast pb.contrast &&
-  compatible_range pa.ink pb.ink &&
-  compatible_range pa.zoom pb.zoom
 
 (* state detection ******************************************************)
 
@@ -119,7 +31,7 @@ let build_state
     ~physical_device_width
     ~device_aspect_ratio =
   { output = any ;
-    interactivity = between Pointer Multi_touch ;
+    interactivity = from Pointer ;
     display_width = only display_width ;
     physical_display_width = only physical_display_width ;
     display_aspect_ratio = only display_aspect_ratio ;
@@ -245,9 +157,6 @@ type changes =
     current : profile id ref ;
     table : profile table }
 
-let selection { updates ; current ; table} =
-  !current, meet (List.assoc !current table) (state updates)
-
 let find_profile profile table =
   try
     fst @@ List.find
@@ -255,6 +164,11 @@ let find_profile profile table =
       table
   with Not_found ->
     failwith "no compatible profile found"
+
+let selection { updates ; current ; table} =
+  let profile = state updates in
+  current := find_profile profile table ;
+  !current, meet (List.assoc !current table) profile
 
 let changes updates table =
   { updates ; table ;

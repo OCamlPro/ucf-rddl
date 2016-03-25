@@ -100,7 +100,7 @@ and profile =
     interactivity : interactivity_level range ;
     display_width : int range ;
     physical_display_width : int range ;
-    display_aspect_ratio : float range (* width / height *) ;
+    display_aspect_ratio : float range (* width / height 0(%) to 100(%) *) ;
     device_width : int range ;
     physical_device_width : int range ;
     device_aspect_ratio : float range (* width / height *) ;
@@ -133,27 +133,13 @@ and 'a id = string
 (** A table of identified values of a given type. *)
 and 'a table = ('a id * 'a) list
 
-(** A range of ['a]s. [{ min = None ; max = None }] means any value. *)
+(** A range of ['a]s.
+    [{ min = None ; max = None }] means any value. *)
 and 'a range =
-  { min : 'a option ;
+  { min : ('a * [ `Closed | `Open ]) option ;
     (** The inclusive minimum. *)
-    max : 'a option
+    max : ('a * [ `Closed | `Open ]) option
     (** The inclusive maximum. *) }
-
-(** The full range. *)
-val any : 'a range
-
-(** A range with only its lower limit defined. *)
-val from : 'a -> 'a range
-
-(** A range with only its upper limit defined. *)
-val upto : 'a -> 'a range
-
-(** A range with both limits defined. *)
-val between : 'a -> 'a -> 'a range
-
-(** A singleton range. *)
-val only : 'a -> 'a range
 
 (** The JSON encoding. *)
 val ui_encoding : ui Json_encoding.encoding

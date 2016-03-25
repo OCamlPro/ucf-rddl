@@ -18,20 +18,27 @@
 (************************************************************************)
 
 open Rddl_ast
+open Rddl_profile
 
 let pretty_print_profile profile =
   let open Format in
-  let pp_range pp ppf = function
+  let rec pp_range pp ppf = function
     | { min = None ; max = None } ->
       fprintf ppf "any"
-    | { min = Some min ; max = Some max } when min = max ->
+    | { min = Some (min, `Closed) ; max = Some (max, `Closed) } when min = max ->
       fprintf ppf "only %a" pp min
     | { min = Some min ; max = Some max } ->
-      fprintf ppf "between %a %a" pp min pp max
-    | { min = Some min ; max = None } ->
+      fprintf ppf "%a &&& %a"
+        (pp_range pp) { min = Some min ; max = None }
+        (pp_range pp) { max = Some max ; min = None }
+    | { min = Some (min, `Closed) ; max = None } ->
       fprintf ppf "from %a" pp min
-    | { min = None ; max = Some max } ->
-      fprintf ppf "upto %a" pp max in
+    | { min = Some (min, `Open) ; max = None } ->
+      fprintf ppf "above %a" pp min
+    | { min = None ; max = Some (max, `Closed) } ->
+      fprintf ppf "upto %a" pp max
+    | { min = None ; max = Some (max, `Open) } ->
+      fprintf ppf "below %a" pp max in
   let pp_output_level ppf = function
     | Textual -> fprintf ppf "Textual"
     | Simplified -> fprintf ppf "Simplified"
@@ -71,27 +78,36 @@ let pretty_print_profile profile =
     (pp_range pp_three_steps_level) profile.zoom
 
 let profiles =
-  let generic =
-    { output = any ;
-      interactivity = any ;
-      display_width = any ;
-      physical_display_width = any ;
-      display_aspect_ratio = any ;
-      device_width = any ;
-      physical_device_width = any ;
-      device_aspect_ratio = any ;
-      contrast = any ;
-      ink = any ;
-      zoom = any ;
-      connected = [] ;
-      bandwidth = [] } in
-  [ "small", { generic with display_width = upto 400 } ;
-    "medium", { generic with display_width = between 401 768 } ;
-    "large", { generic with display_width = from 769 } ]
+  [ "small-vertical",
+    profile
+      ~display_width: (below 400)
+      ~display_aspect_ratio: (upto 1.) () ;
+    "medium-vertical",
+    profile
+      ~display_width: (from 400 &&& below 768)
+      ~display_aspect_ratio: (upto 1.) () ;
+    "large-vertical",
+    profile
+      ~display_width: (from 768)
+      ~display_aspect_ratio: (upto 1.) () ;
+    "small-horizontal",
+    profile
+      ~display_width: (below 400)
+      ~display_aspect_ratio: (from 1.) () ;
+    "medium-horizontal",
+    profile
+      ~display_width: (from 400 &&& below 768)
+      ~display_aspect_ratio: (from 1.) () ;
+    "large-horizontal",
+    profile
+      ~display_width: (from 768)
+      ~display_aspect_ratio: (from 1.) () ]
 
 let () =
-  let changes = Rddl_profiler.changes Rddl_profiler.window profiles in
-  Rddl_profiler.on_change changes @@ fun (id, profile) ->
+  let updates = Rddl_profiler.window in
+  let changes = Rddl_profiler.changes updates profiles in
+  Rddl_profiler.on_update updates @@ fun profile ->
+  let (id, profile) = Rddl_profiler.selection changes in
   let text =
     List.fold_left
       (fun acc (pid, _) ->

@@ -77,36 +77,35 @@ and 'a id = string
 and 'a table = ('a id * 'a) list
 
 and 'a range =
-  { min : 'a option ;
-    max : 'a option }
+  { min : ('a * [ `Closed | `Open ]) option ;
+    max : ('a * [ `Closed | `Open ]) option }
 
 open Json_encoding
 
 let any =
   { min = None ; max = None }
 
-let between min max =
-  { min = Some min ; max = Some max }
-
-let from min =
-  { min = Some min ; max = None }
-
-let upto max =
-  { min = None ; max = Some max }
-
-let only v =
-  { min = Some v ; max = Some v }
-
 let id_encoding value_encoding = string
 
 let table_encoding value_encoding = assoc value_encoding
 
 let range_encoding ?(compare = Pervasives.compare) enc =
+  let bound =
+  union
+    [ case (obj1 (req "included" enc))
+        (function (v, `Closed) -> Some v | (_, `Open) -> None)
+        (fun v -> (v, `Closed)) ;
+      case (obj1 (req "excluded" enc))
+        (function (v, `Open) -> Some v | (_, `Closed) -> None)
+        (fun v -> (v, `Open)) ;
+      case enc
+        (function (v, `Closed) -> Some v | (_, `Open) -> assert false)
+        (fun v -> (v, `Closed)) ] in
   union
     [ case enc
-        (function { min = Some v ; max = Some v' } when v = v' -> Some v | _ -> None)
-        (fun v -> { min = Some v ; max = Some v }) ;
-      case (obj2 (opt "min" enc) (opt "max" enc))
+        (function { min = Some (v, `Closed) ; max = Some (w, `Closed) } when v = w -> Some v | _ -> None)
+        (fun v -> { min = Some (v, `Closed) ; max = Some (v, `Closed) }) ;
+      case (obj2 (opt "min" bound) (opt "max" bound))
         (fun { min ; max } -> Some (min, max))
         (fun (min, max) -> { min ; max }) ]
 
