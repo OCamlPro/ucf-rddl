@@ -92,14 +92,14 @@ let table_encoding value_encoding = assoc value_encoding
 let range_encoding ?(compare = Pervasives.compare) enc =
   let bound =
   union
-    [ case (obj1 (req "included" enc))
-        (function (v, `Closed) -> Some v | (_, `Open) -> None)
-        (fun v -> (v, `Closed)) ;
-      case (obj1 (req "excluded" enc))
+    [ case (obj1 (req "excluded" enc))
         (function (v, `Open) -> Some v | (_, `Closed) -> None)
         (fun v -> (v, `Open)) ;
       case enc
         (function (v, `Closed) -> Some v | (_, `Open) -> assert false)
+        (fun v -> (v, `Closed)) ;
+      case (obj1 (req "included" enc))
+        (function (v, `Closed) -> Some v | (_, `Open) -> None)
         (fun v -> (v, `Closed)) ] in
   union
     [ case enc
@@ -108,6 +108,22 @@ let range_encoding ?(compare = Pervasives.compare) enc =
       case (obj2 (opt "min" bound) (opt "max" bound))
         (fun { min ; max } -> Some (min, max))
         (fun (min, max) -> { min ; max }) ]
+
+let int_range_encoding =
+  conv
+    (fun { min ; max } ->
+       { min = begin match min with
+             | Some (v, `Closed) -> Some (v, `Closed)
+             | Some (v, `Open) -> Some (succ v, `Closed)
+             | None -> None
+           end ;
+         max = begin match max with
+           | Some (v, `Closed) -> Some (v, `Closed)
+           | Some (v, `Open) -> Some (pred v, `Closed)
+           | None -> None
+         end })
+    (fun v -> v)
+    (range_encoding int)
 
 let source_encoding =
   def "source" @@
@@ -188,11 +204,11 @@ let profile_encoding =
                                "multi touch", Multi_touch ]))
              any))
        (obj6
-          (dft "displayWidth" (range_encoding int) any)
-          (dft "physicalDisplayWidth" (range_encoding int) any)
+          (dft "displayWidth" (int_range_encoding) any)
+          (dft "physicalDisplayWidth" (int_range_encoding) any)
           (dft "displayAspectRatio" (range_encoding float) any)
-          (dft "deviceWidth" (range_encoding int) any)
-          (dft "physicalDeviceWidth" (range_encoding int) any)
+          (dft "deviceWidth" (int_range_encoding) any)
+          (dft "physicalDeviceWidth" (int_range_encoding) any)
           (dft "deviceAspectRatio" (range_encoding float) any)))
     (merge_objs
        (let three_steps_level_encoding =

@@ -1,0 +1,29 @@
+{
+  "pages": {},
+  "profiles": {
+    "small-vertical": {
+      "displayWidth": { "max": 399 },
+      "displayAspectRatio": { "max": { "excluded": 1 } }
+    },
+    "medium-vertical": {
+      "displayWidth": { "min": 400, "max": 767 },
+      "displayAspectRatio": { "max": { "excluded": 1 } }
+    },
+    "large-vertical": {
+      "displayWidth": { "min": 768 },
+      "displayAspectRatio": { "max": { "excluded": 1 } }
+    },
+    "small-horizontal": {
+      "displayWidth": { "max": 399 },
+      "displayAspectRatio": { "min": 1 }
+    },
+    "medium-horizontal": {
+      "displayWidth": { "min": 400, "max": 767 },
+      "displayAspectRatio": { "min": 1 }
+    },
+    "large-horizontal": {
+      "displayWidth": { "min": 768 },
+      "displayAspectRatio": { "min": 1 }
+    }
+  }
+}

@@ -81,15 +81,15 @@ let profiles =
   [ "small-vertical",
     profile
       ~display_width: (below 400)
-      ~display_aspect_ratio: (upto 1.) () ;
+      ~display_aspect_ratio: (below 1.) () ;
     "medium-vertical",
     profile
       ~display_width: (from 400 &&& below 768)
-      ~display_aspect_ratio: (upto 1.) () ;
+      ~display_aspect_ratio: (below 1.) () ;
     "large-vertical",
     profile
       ~display_width: (from 768)
-      ~display_aspect_ratio: (upto 1.) () ;
+      ~display_aspect_ratio: (below 1.) () ;
     "small-horizontal",
     profile
       ~display_width: (below 400)

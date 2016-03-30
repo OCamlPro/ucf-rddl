@@ -1,0 +1,14 @@
+{
+  "pages": {},
+  "profiles": {
+    "small": {
+      "displayWidth": { "max": 399 }
+    },
+    "medium": {
+      "displayWidth": { "min": 400, "max": 767 }
+    },
+    "large": {
+      "displayWidth": { "min": 768 }
+    }
+  }
+}
