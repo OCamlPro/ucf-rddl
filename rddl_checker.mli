@@ -47,10 +47,10 @@ exception Unknown_component of page id * int * component id
 (** An undeclared container ID appears inside a view. *)
 exception Unknown_container of page id * int * container id
 
-(** An component ID appears twice inside a view. *)
+(** A component ID appears twice inside a view. *)
 exception Component_appearing_twice of page id * int * component id
 
-(** An container ID appears twice inside a view. *)
+(** A container ID appears twice inside a view. *)
 exception Container_appearing_twice of page id * int * container id
 
 (** Two views are assigned the same profile ID . *)
