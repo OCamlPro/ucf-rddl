@@ -100,7 +100,7 @@ and profile =
     interactivity : interactivity_level range ;
     display_width : int range ;
     physical_display_width : int range ;
-    display_aspect_ratio : float range (* width / height 0(%) to 100(%) *) ;
+    display_aspect_ratio : float range (* width / height *) ;
     device_width : int range ;
     physical_device_width : int range ;
     device_aspect_ratio : float range (* width / height *) ;
@@ -141,5 +141,8 @@ and 'a range =
     max : ('a * [ `Closed | `Open ]) option
     (** The inclusive maximum. *) }
 
-(** The JSON encoding. *)
+(** The JSON encoding for {!ui}. *)
 val ui_encoding : ui Json_encoding.encoding
+
+(** The JSON encoding for {!profile}. *)
+val profile_encoding : profile Json_encoding.encoding

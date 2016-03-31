@@ -26,6 +26,9 @@ exception Duplicate_profile of profile id
     Gives the computed conflicting intersection. *)
 exception Clashing_profiles of profile id * profile id * profile
 
+(** The profiles do not cover all configurations, bears an example. *)
+exception Uncovered_profile of profile
+
 (** A page ID is used twice. *)
 exception Duplicate_page of page id
 
@@ -67,3 +70,8 @@ val check : ui -> exn list
 
 (** Check an RDDL definition, stop and raise the first error. *)
 val wellformed : ui -> unit
+
+(** Pretty prints the errors. *)
+val print_error :
+  ?print_unknown:(Format.formatter -> exn -> unit) ->
+  Format.formatter -> exn -> unit

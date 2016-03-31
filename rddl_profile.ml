@@ -46,6 +46,18 @@ let wellformed_range = function
   | { min = Some (min, `Closed) ; max = Some (max, `Closed) } -> min <= max
   | { min = Some (min, _) ; max = Some (max, _) } -> min < max
 
+let inside v { min ; max } =
+  begin match min with
+    | None -> true
+    | Some (b, `Closed) -> v >= b
+    | Some (b, `Open) -> v > b
+  end &&
+  begin match max with
+    | None -> true
+    | Some (b, `Closed) -> v <= b
+    | Some (b, `Open) -> v < b
+  end
+
 let meet_ranges ra rb =
   { min =
       begin match ra.min, rb.min with

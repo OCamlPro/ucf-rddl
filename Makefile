@@ -4,7 +4,8 @@ MLS = \
   rddl_checker.ml \
   rddl_yojson.ml \
   rddl_profiler.ml \
-  rddl_profiler_demo.ml
+  rddl_profiler_demo.ml \
+  rddl_checker_main.ml
 MLIS = \
   rddl_ast.ml \
   rddl_profile.mli \
@@ -26,6 +27,7 @@ $(WITH_JS_SYNTAX): PACKAGES+=js_of_ocaml.syntax
 $(WITH_JS_SYNTAX): OPTIONS+=-syntax camlp4o
 
 all: \
+	rddl-checker \
   rddl.cma \
   rddl.cmxa \
   rddl_client.cma \
@@ -40,6 +42,11 @@ rddl_profiler_demo.byte: \
   rddl_client.cma \
   rddl_profiler_demo.cmo
 	ocamlfind ocamlc -g $(OPTIONS) -linkpkg $^ -o $@
+
+rddl-checker: \
+	rddl.cmxa \
+	rddl_checker_main.cmx
+	ocamlfind ocamlopt -g $(OPTIONS) -linkpkg $^ -o $@
 
 rddl.cmxa: \
   rddl_ast.cmx \
@@ -61,13 +68,13 @@ rddl_client.cma: \
 	ocamlfind ocamlc $(OPTIONS) $^ -a -o $@
 
 %.cmo: %.ml
-	ocamlfind ocamlc -g $(OPTIONS) $(OPTIONS) -c $<
+	ocamlfind ocamlc -g $(OPTIONS) -c $<
 
 %.cmx: %.ml
-	ocamlfind ocamlopt -g $(OPTIONS) $(OPTIONS) -c $<
+	ocamlfind ocamlopt -g $(OPTIONS) -c $<
 
 %.cmi: %.mli
-	ocamlfind ocamlopt -g $(OPTIONS) $(OPTIONS) -c $<
+	ocamlfind ocamlopt -g $(OPTIONS) -c $<
 
 %.js: %.byte
 	js_of_ocaml --pretty $< -o $@
@@ -79,4 +86,4 @@ rddl_client.cma: \
 
 clean:
 	-rm -f *.cm* rddl *~ *.o *.a *.dll *.dylib *.so
-	-rm -f rddl_profiler_demo.js rddl_profiler_demo.byte
+	-rm -f rddl_profiler_demo.js rddl_profiler_demo.byte rddl-checker

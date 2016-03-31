@@ -70,6 +70,9 @@ val below : 'a -> 'a range
 (** A singleton range. *)
 val only : 'a -> 'a range
 
+(** Tells if a value is inside a range. *)
+val inside : 'a -> 'a range -> bool
+
 (** Computes the intersection of two ranges. *)
 val (&&&) : 'a range -> 'a range -> 'a range
 

@@ -1,7 +1,7 @@
-(* RDDL - IOs using Yojson *)
+(* RDDL - Command line checker *)
 
 (************************************************************************)
-(*  RDDL - reactive design description language - IOs using Yojson      *)
+(*  RDDL - reactive design description language                         *)
 (*                                                                      *)
 (*    Copyright 2014 OCamlPro                                           *)
 (*                                                                      *)
@@ -17,29 +17,15 @@
 (*                                                                      *)
 (************************************************************************)
 
-open Json_encoding
-open Rddl_ast
-
-let schema_to_file ~filename =
-  let json =
-    Json_repr.to_yojson (Json_schema.to_json (schema ui_encoding)) in
-  match open_out filename with
-  | exception exn -> raise exn
-  | fp ->
-    match Yojson.Safe.pretty_to_channel fp json with
-    | exception exn -> close_out fp ; raise exn
-    | res -> close_out fp ; res
-
-let to_file ~filename ui =
-  let json =
-    Json_repr.to_yojson (construct ui_encoding ui) in
-  let fp = open_out filename in
-  match Yojson.Safe.pretty_to_channel fp json with
-  | exception exn -> close_out fp ; raise exn
-  | res -> close_out fp ; res
-
-let from_file ~filename =
-  let fp = open_in filename in
-  match Yojson.Safe.from_channel fp with
-  | exception exn -> close_in fp ; raise exn
-  | json -> close_in fp ; destruct ui_encoding (Json_repr.from_yojson json)
+let () =
+  try
+    match Sys.argv with
+    | [| _exe ; file |] ->
+      let ui = Rddl_yojson.from_file file in
+      Rddl_checker.wellformed ui
+    | _ ->
+      Printf.eprintf "Usage:\n  rddl-check <file.rddl.json>\n%!" ;
+      exit 2
+  with exn ->
+    Format.eprintf "%a@." (fun ppf -> Rddl_checker.print_error ppf) exn ;
+    exit 1
