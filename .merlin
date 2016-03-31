@@ -1,0 +1,3 @@
+PKG yojson
+PKG ocplib-json-typed
+EXT js
