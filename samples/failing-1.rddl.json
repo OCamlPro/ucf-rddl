@@ -1,0 +1,12 @@
+{
+  "pages": {},
+  "profiles": {
+    "vertical": {
+      "output": "fancy",
+      "displayAspectRatio": { "max": { "excluded": 1 } }
+    },
+    "horizontal": {
+      "displayAspectRatio": { "min": 1 }
+    }
+  }
+}
