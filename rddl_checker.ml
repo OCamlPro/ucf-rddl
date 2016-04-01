@@ -52,7 +52,7 @@ let enum_criteria access assign cases =
       cases in
   Criteria { hotpoints ; assign }
 
-let num_criteria access assign =
+let range_criteria access assign filter =
   let hotpoints profiles =
     let ranges =
       List.map access profiles in
@@ -106,8 +106,20 @@ let num_criteria access assign =
       | (first, `Left) :: _ ->
         [ { min = None ; max = Some (first, `Closed) } ]
     end in
-    { min = None ; max = None } :: ranges first bounds in
+    List.filter filter ({ min = None ; max = None } :: ranges first bounds) in
   Criteria { hotpoints ; assign }
+
+let int_criteria access assign =
+  range_criteria access assign
+    (function
+      | { min = Some (v, `Open) ; max = Some (v', `Open) } ->
+        (* filter empty integer ranges *)
+        v' <> v + 1
+      | _ -> true)
+
+let float_criteria access assign =
+  range_criteria access assign
+    (fun _ -> true)
 
 let criteria =
   [ enum_criteria
@@ -130,22 +142,22 @@ let criteria =
       (fun { zoom = v } -> v)
       (fun r v -> { r with zoom = only v })
       [ Low ; Normal ; High ] ;
-    num_criteria
+    float_criteria
       (fun { display_aspect_ratio = v } -> v)
       (fun r v -> { r with display_aspect_ratio = v }) ;
-    num_criteria
+    int_criteria
       (fun { display_width = v } -> v)
       (fun r v -> { r with display_width = v }) ;
-    num_criteria
+    int_criteria
       (fun { physical_display_width = v } -> v)
       (fun r v -> { r with physical_display_width = v }) ;
-    num_criteria
+    float_criteria
       (fun { device_aspect_ratio = v } -> v)
       (fun r v -> { r with device_aspect_ratio = v }) ;
-    num_criteria
+    int_criteria
       (fun { device_width = v } -> v)
       (fun r v -> { r with device_width = v }) ;
-    num_criteria
+    int_criteria
       (fun { physical_device_width = v } -> v)
       (fun r v -> { r with physical_device_width = v }) ]
 
