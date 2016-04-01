@@ -52,6 +52,63 @@ let enum_criteria access assign cases =
       cases in
   Criteria { hotpoints ; assign }
 
+let num_criteria access assign =
+  let hotpoints profiles =
+    let ranges =
+      List.map access profiles in
+    let bounds =
+      List.fold_left
+        (fun acc { min ; max } ->
+           begin match min with
+             | None -> []
+             | Some (v, `Open) -> [ (v, `Left) ]
+             | Some (v, `Closed) -> [ (v, `Right) ]
+           end @
+           begin match max with
+             | None -> []
+             | Some (v, `Open) -> [ (v, `Right) ]
+             | Some (v, `Closed) -> [ (v, `Left) ]
+           end @
+           acc)
+        [] ranges in
+    let bounds =
+      List.sort compare bounds in
+    let rec ranges acc = function
+      | [] -> acc
+      | (last, `Right) :: [] ->
+        { min = Some (last, `Closed) ; max = None } :: acc
+      | (last, `Left) :: [] ->
+        { min = Some (last, `Open) ; max = None } :: acc
+      | (vleft, `Right) :: ((vright, `Left) :: _ as rest) when vleft = vright ->
+        ranges
+          ({ min = Some (vleft, `Closed) ;
+             max = Some (vright, `Closed) } ::
+           acc)
+          rest
+      | (vleft, bleft) :: ((vright, bright) :: _ as rest) when vleft = vright ->
+        ranges acc rest
+      | (vleft, bleft) :: ((vright, bright) :: _ as rest) ->
+        ranges
+          ({ min = Some (vleft,
+                         match bleft with
+                         | `Left -> `Open
+                         | `Right -> `Closed) ;
+             max = Some (vright,
+                         match bright with
+                         | `Left -> `Closed
+                         | `Right -> `Open) } ::
+           acc)
+          rest in
+    let first = begin match bounds with
+      | [] -> []
+      | (first, `Right) :: _ ->
+        [ { min = None ; max = Some (first, `Open) } ]
+      | (first, `Left) :: _ ->
+        [ { min = None ; max = Some (first, `Closed) } ]
+    end in
+    { min = None ; max = None } :: ranges first bounds in
+  Criteria { hotpoints ; assign }
+
 let criteria =
   [ enum_criteria
       (fun { output = v } -> v)
@@ -72,15 +129,31 @@ let criteria =
     enum_criteria
       (fun { zoom = v } -> v)
       (fun r v -> { r with zoom = only v })
-      [ Low ; Normal ; High ]
-      (* TODO: other criteria *) ]
+      [ Low ; Normal ; High ] ;
+    num_criteria
+      (fun { display_aspect_ratio = v } -> v)
+      (fun r v -> { r with display_aspect_ratio = v }) ;
+    num_criteria
+      (fun { display_width = v } -> v)
+      (fun r v -> { r with display_width = v }) ;
+    num_criteria
+      (fun { physical_display_width = v } -> v)
+      (fun r v -> { r with physical_display_width = v }) ;
+    num_criteria
+      (fun { device_aspect_ratio = v } -> v)
+      (fun r v -> { r with device_aspect_ratio = v }) ;
+    num_criteria
+      (fun { device_width = v } -> v)
+      (fun r v -> { r with device_width = v }) ;
+    num_criteria
+      (fun { physical_device_width = v } -> v)
+      (fun r v -> { r with physical_device_width = v }) ]
 
 let find_unhandled_profile profiles =
   let rec find profile = function
     | [] ->
-      List.iter
-        (fun p -> if not (compatible profile p) then raise (Found profile))
-        profiles
+      if not (List.exists (compatible profile) profiles) then
+        raise (Found profile)
     | (Criteria crit) :: crits ->
       match crit.hotpoints profiles with
       | [] -> find profile crits
