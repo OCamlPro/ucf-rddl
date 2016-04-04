@@ -14,7 +14,7 @@ MLIS = \
   rddl_profiler.mli
 PACKAGES = yojson ocplib-json-typed
 WITH_JS_PACKAGE = \
-  rddl_profiler_demo.byte \
+  rddl-profiler-demo.byte \
   rddl_client.cma
 WITH_JS_SYNTAX = \
   rddl_profiler.cmo \
@@ -31,14 +31,14 @@ all: \
   rddl.cma \
   rddl.cmxa \
   rddl_client.cma \
-  rddl_profiler_demo.js \
+  rddl-profiler-demo.js \
   rddl_schema.json
 
 rddl_schema.json: rddl.cma
 	echo 'Rddl_yojson.schema_to_file "rddl_schema.json";;' | \
-	ocaml $(shell ocamlfind -query -r -predicates byte -i-format -a-format $(PACKAGES)) rddl.cma
+	ocaml $(shell ocamlfind -query -r -predicates byte -i-format -a-format $(PACKAGES)) rddl.cma > /dev/null
 
-rddl_profiler_demo.byte: \
+rddl-profiler-demo.byte: \
   rddl_client.cma \
   rddl_profiler_demo.cmo
 	ocamlfind ocamlc -g $(OPTIONS) -linkpkg $^ -o $@
@@ -86,4 +86,4 @@ rddl_client.cma: \
 
 clean:
 	-rm -f *.cm* rddl *~ *.o *.a *.dll *.dylib *.so
-	-rm -f rddl_profiler_demo.js rddl_profiler_demo.byte rddl-checker
+	-rm -f rddl-profiler-demo.js rddl-profiler-demo.byte rddl-checker
