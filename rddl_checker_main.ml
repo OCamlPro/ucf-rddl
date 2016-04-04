@@ -18,14 +18,23 @@
 (************************************************************************)
 
 let () =
-  try
+  match
     match Sys.argv with
     | [| _exe ; file |] ->
       let ui = Rddl_yojson.from_file file in
-      Rddl_checker.wellformed ui
+      Rddl_checker.check ui
     | _ ->
       Printf.eprintf "Usage:\n  rddl-check <file.rddl.json>\n%!" ;
       exit 2
-  with exn ->
+  with
+  | exception Yojson.Json_error msg ->
+    Format.eprintf "%s@." msg ;
+    exit 1
+  | exception exn ->
     Format.eprintf "%a@." (fun ppf -> Rddl_checker.print_error ppf) exn ;
+    exit 2
+  | errors ->
+    List.iter
+      (Format.eprintf "%a@." (fun ppf -> Rddl_checker.print_error ppf))
+      errors ;
     exit 1

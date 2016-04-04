@@ -22,22 +22,42 @@
           "properties": {
             "type": { "type": "string", "enum": [ "component" ] },
             "constructor": { "type": "string" },
+            "parameters": {}
+          },
+          "required": [ "constructor", "type" ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": [ "component" ] },
             "id": { "type": "string" }
           },
-          "required": [ "id", "constructor", "type" ]
+          "required": [ "id", "type" ]
         },
         {
           "type": "object",
           "properties": {
             "type": { "type": "string", "enum": [ "container" ] },
             "constructor": { "type": "string" },
+            "parameters": {},
             "children": {
               "type": "array",
               "items": { "$ref": "#/definitions/element" }
-            },
-            "id": { "type": "string" }
+            }
           },
           "required": [ "children", "constructor", "type" ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": [ "container" ] },
+            "id": { "type": "string" },
+            "children": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/element" }
+            }
+          },
+          "required": [ "children", "id", "type" ]
         }
       ]
     },
@@ -109,12 +129,14 @@
                   { "type": "number" }
                 ]
               },
+              "constructor": { "type": "string" },
+              "parameters": {},
               "priority": {
                 "type": "string",
                 "enum": [ "optional", "hideable", "required" ]
               }
             },
-            "required": [ "priority" ]
+            "required": [ "priority", "constructor" ]
           }
         },
         "containers": {
@@ -124,12 +146,14 @@
             "type": "object",
             "properties": {
               "extensible": { "type": "boolean" },
+              "constructor": { "type": "string" },
+              "parameters": {},
               "priority": {
                 "type": "string",
                 "enum": [ "optional", "hideable", "required" ]
               }
             },
-            "required": [ "priority" ]
+            "required": [ "priority", "constructor" ]
           }
         },
         "sources": {

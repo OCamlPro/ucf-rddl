@@ -33,10 +33,14 @@ and view =
 
 and container =
   { container_extensible : bool ;
+    container_constructor : string ;
+    container_parameters : Json_repr.value option ;
     container_priority : priority }
 
 and component =
   { component_aspect_ratio : float range ;
+    component_constructor : string ;
+    component_parameters : Json_repr.value option ;
     component_priority : priority }
 
 and priority =
@@ -68,8 +72,10 @@ and interactivity_level = View_only | Pointer | Single_touch | Multi_touch
 and three_steps_level = Low | Normal | High
 
 and element =
-  | Container of constructor * element list * container id option
-  | Component of constructor * component id
+  | Container of container id * element list
+  | Component of component id
+  | Anonymous_container of string * Json_repr.value option * element list
+  | Anonymous_component of string * Json_repr.value option
 
 and constructor = string
 
@@ -145,22 +151,50 @@ let priority_encoding =
 
 let container_encoding =
   conv
-    (fun { container_extensible ; container_priority } ->
-       (container_extensible, container_priority))
-    (fun (container_extensible, container_priority) ->
-       { container_extensible ; container_priority }) @@
-  obj2
+    (fun { container_extensible ;
+           container_constructor ;
+           container_parameters ;
+           container_priority } ->
+      (container_extensible,
+       container_constructor,
+       container_parameters ,
+       container_priority))
+    (fun (container_extensible,
+          container_constructor,
+          container_parameters,
+          container_priority) ->
+      { container_extensible ;
+        container_constructor ;
+        container_parameters ;
+        container_priority }) @@
+  obj4
     (dft "extensible" bool false)
+    (req "constructor" string)
+    (opt "parameters" any_value)
     (req "priority" priority_encoding)
 
 let component_encoding =
   conv
-    (fun { component_aspect_ratio ; component_priority } ->
-       (component_aspect_ratio, component_priority))
-    (fun (component_aspect_ratio, component_priority) ->
-       { component_aspect_ratio ; component_priority }) @@
-  obj2
+    (fun { component_aspect_ratio ;
+           component_constructor ;
+           component_parameters ;
+           component_priority } ->
+      (component_aspect_ratio,
+       component_constructor,
+       component_parameters,
+       component_priority))
+    (fun (component_aspect_ratio,
+          component_constructor,
+          component_parameters,
+          component_priority) ->
+      { component_aspect_ratio ;
+        component_constructor ;
+        component_parameters ;
+        component_priority }) @@
+  obj4
     (dft "aspect_ratio" (range_encoding float) any)
+    (req "constructor" string)
+    (opt "parameters" any_value)
     (req "priority" priority_encoding)
 
 let profile_encoding =
@@ -225,20 +259,37 @@ let element_encoding =
   mu "element" @@ fun element_encoding ->
   union
     [ case
+        (obj3
+           (req "type" (string_enum ["container", ()]))
+           (req "id" (id_encoding container_encoding))
+           (req "children" (list element_encoding)))
+        (function Container (id, children) -> Some ((), id, children) | _ -> None)
+        (fun ((), id, children) -> Container (id, children)) ;
+      case
         (obj4
            (req "type" (string_enum ["container", ()]))
            (req "constructor" string)
-           (req "children" (list element_encoding))
-           (opt "id" (id_encoding container_encoding)))
-        (function Container (constructor, children, id) -> Some ((), constructor, children, id) | _ -> None)
-        (fun ((), constructor, children, id) -> Container (constructor, children, id)) ;
+           (opt "parameters" any_value)
+           (req "children" (list element_encoding)))
+        (function Anonymous_container (params, cstr, children) ->
+           Some ((), params, cstr,children) | _ -> None)
+        (fun ((), params, cstr, children) ->
+           Anonymous_container (params, cstr, children)) ;
+      case
+        (obj2
+           (req "type" (string_enum ["component", ()]))
+           (req "id" (id_encoding component_encoding)))
+        (function Component id -> Some ((), id) | _ -> None)
+        (fun ((), id) -> Component id) ;
       case
         (obj3
            (req "type" (string_enum ["component", ()]))
            (req "constructor" string)
-           (req "id" (id_encoding component_encoding)))
-        (function Component (constructor, id) -> Some ((), constructor, id) | _ -> None)
-        (fun ((), constructor, id) -> Component (constructor, id)) ]
+           (opt "parameters" any_value))
+        (function Anonymous_component (params, cstr) ->
+           Some ((), params, cstr) | _ -> None)
+        (fun ((), params, cstr) ->
+           Anonymous_component (params, cstr)) ]
 
 let view_encoding =
   conv

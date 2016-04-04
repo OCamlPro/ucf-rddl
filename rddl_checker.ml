@@ -222,9 +222,9 @@ let check raise ui =
            let appearing_containers = Hashtbl.create 10 in
            let appearing_components = Hashtbl.create 10 in
            let rec traverse = function
-             | Container (_cstr, children, None) ->
+             | Anonymous_container (_, _, children) ->
                List.iter traverse children
-             | Container (_cstr, children, Some id) ->
+             | Container (id, children) ->
                if not (Hashtbl.mem containers id) then
                  raise (Unknown_container (page_id, i, id)) ;
                if Hashtbl.mem appearing_containers id then
@@ -232,7 +232,8 @@ let check raise ui =
                Hashtbl.add appearing_anywhere_containers id () ;
                Hashtbl.add appearing_containers id () ;
                List.iter traverse children
-             | Component (_cstr, id) ->
+             | Anonymous_component _ -> ()
+             | Component id ->
                if not (Hashtbl.mem components id) then
                  raise (Unknown_component (page_id, i, id)) ;
                if Hashtbl.mem appearing_components id then

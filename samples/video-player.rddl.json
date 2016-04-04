@@ -6,7 +6,6 @@
                     "profiles": [ "horizontal" ],
                     "document": {
                         "type": "component",
-                        "constructor": "video-player",
                         "id": "video"
                     }
                 },
@@ -17,19 +16,23 @@
                         "constructor": "vertical-box",
                         "children": [ {
                             "type": "component",
-                            "constructor": "video-player",
                             "id": "video"
                         }, {
                             "type": "component",
-                            "constructor": "custom",
                             "id": "info"
                         } ]
                     }
                 }
             ],
             "components": {
-                "video": { "priority": "required" },
-                "info": { "priority": "optional" }
+                "video": {
+                    "priority": "required",
+                    "constructor": "video-player"
+                },
+                "info": {
+                    "priority": "optional",
+                    "constructor": "custom"
+                }
             }
         }
     },

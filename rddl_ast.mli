@@ -68,6 +68,10 @@ and view =
 and container =
   { container_extensible : bool ;
     (** Tells if the contents can be updated from the code.*)
+    container_constructor : string ;
+    (** The Container's constructor. *)
+    container_parameters : Json_repr.value option ;
+    (** Container dependent parameters as a generic JSON value. *)
     container_priority : priority
     (** The element's display priority. *) }
 
@@ -75,6 +79,10 @@ and container =
 and component =
   { component_aspect_ratio : float range ;
     (** The aspect ratios supported by the code. *)
+    component_constructor : string ;
+    (** The Component's constructor. *)
+    component_parameters : Json_repr.value option ;
+    (** Component dependent parameters as a generic JSON value. *)
     component_priority : priority
     (** The element's display priority. *) }
 
@@ -121,8 +129,10 @@ and three_steps_level = Low | Normal | High
 
 (** The tree type of containers and components. *)
 and element =
-  | Container of constructor * element list * container id option
-  | Component of constructor * component id
+  | Container of container id * element list
+  | Component of component id
+  | Anonymous_container of string * Json_repr.value option * element list
+  | Anonymous_component of string * Json_repr.value option
 
 (** The backend-dependent container/component kind. *)
 and constructor = string

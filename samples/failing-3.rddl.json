@@ -6,7 +6,6 @@
                     "profiles": [ "horizontal" ],
                     "document": {
                         "type": "component",
-                        "constructor": "video-player",
                         "id": "video"
                     }
                 },
@@ -14,14 +13,14 @@
                     "profiles": [ "vertical" ],
                     "document": {
                         "type": "component",
-                        "constructor": "video-player",
                         "id": "video"
                     }
                 }
             ],
             "components": {
                 "video": {
-                    "priority": "required"
+                    "priority": "required",
+                    "constructor": "video-player"
                 }
             }
         },
