@@ -32,6 +32,8 @@ exception Unknown_component of page id * int * component id
 exception Unknown_container of page id * int * container id
 exception Component_appearing_twice of page id * int * component id
 exception Container_appearing_twice of page id * int * container id
+exception Component_never_appears of page id * component id
+exception Container_never_appears of page id * container id
 exception Profile_handled_by_two_views of page id * profile id * int * int
 exception Profile_not_handled of page id * profile id
 exception Unknown_profile of page id * int * profile id
@@ -213,6 +215,8 @@ let check raise ui =
         htable page.containers
           (fun id -> Duplicate_container (page_id, id)) in
       let handled_profiles = Hashtbl.create 10 in
+      let appearing_anywhere_containers = Hashtbl.create 10 in
+      let appearing_anywhere_components = Hashtbl.create 10 in
       List.iteri
         (fun i view ->
            let appearing_containers = Hashtbl.create 10 in
@@ -225,6 +229,7 @@ let check raise ui =
                  raise (Unknown_container (page_id, i, id)) ;
                if Hashtbl.mem appearing_containers id then
                  raise (Container_appearing_twice (page_id, i, id)) ;
+               Hashtbl.add appearing_anywhere_containers id () ;
                Hashtbl.add appearing_containers id () ;
                List.iter traverse children
              | Component (_cstr, id) ->
@@ -232,6 +237,7 @@ let check raise ui =
                  raise (Unknown_component (page_id, i, id)) ;
                if Hashtbl.mem appearing_components id then
                  raise (Component_appearing_twice (page_id, i, id)) ;
+               Hashtbl.add appearing_anywhere_components id () ;
                Hashtbl.add appearing_components id () in
            traverse view.document ;
            Hashtbl.iter
@@ -258,6 +264,20 @@ let check raise ui =
                 Hashtbl.add handled_profiles id i)
              view.compatible_profiles)
         page.views ;
+      Hashtbl.iter
+        (fun id { container_priority = prio } -> match prio with
+           | Required | Hideable -> ()
+           | Optional ->
+             if not (Hashtbl.mem appearing_anywhere_containers id) then
+               raise (Container_never_appears (page_id, id)))
+        containers ;
+      Hashtbl.iter
+        (fun id { component_priority = prio } -> match prio with
+           | Required | Hideable -> ()
+           | Optional ->
+             if not (Hashtbl.mem appearing_anywhere_components id) then
+               raise (Component_never_appears (page_id, id)))
+        components ;
       Hashtbl.iter (fun id _ ->
           if not (Hashtbl.mem handled_profiles id) then
             raise (Profile_not_handled (page_id, id)))
@@ -310,6 +330,10 @@ let print_error ?print_unknown ppf = function
     Format.fprintf ppf "In page %s, view %d, component %s appears twice" page_id view id
   | Container_appearing_twice (page_id, view, id) ->
     Format.fprintf ppf "In page %s, view %d, container %s appears twice" page_id view id
+  | Component_never_appears (page_id, id) ->
+    Format.fprintf ppf "In page %s, optional component %s never appears" page_id id
+  | Container_never_appears (page_id, id) ->
+    Format.fprintf ppf "In page %s, optional container %s never appears" page_id id
   | Profile_handled_by_two_views (page_id, id, view1, view2) ->
     Format.fprintf ppf "In page %s, profile %s handled by both views %d and %d" page_id id view1 view2
   | Profile_not_handled (page_id, id) ->

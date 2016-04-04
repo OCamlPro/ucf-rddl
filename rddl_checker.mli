@@ -56,6 +56,12 @@ exception Component_appearing_twice of page id * int * component id
 (** A container ID appears twice inside a view. *)
 exception Container_appearing_twice of page id * int * container id
 
+(** An optional component ID never appears in any view. *)
+exception Component_never_appears of page id * component id
+
+(** An optional container ID never appears in any view. *)
+exception Container_never_appears of page id * container id
+
 (** Two views are assigned the same profile ID . *)
 exception Profile_handled_by_two_views of page id * profile id * int * int
 
