@@ -1,0 +1,11 @@
+{
+  "pages": {},
+  "profiles": {
+    "vertical": {
+      "displayAspectRatio": { "mix": { "excluded": 1} }
+    },
+    "horizontal": {
+      "displayAspectRatio": { "min": 1 }
+    }
+  }
+}

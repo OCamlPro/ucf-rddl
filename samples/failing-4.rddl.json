@@ -1,0 +1,36 @@
+{
+    "pages": {
+        "player": {
+            "views": [
+                /* 0: horizontal / fullscreen */ {
+                    "profiles": [ "horizontal" ],
+                    "document": {
+                        "type": "component",
+                        "constructor": "video-player",
+                        "id": "video"
+                    }
+                },
+                /* 1: vertical / app */ {
+                    "profiles": [ "vertical" ],
+                    "document": {
+                        "type": "container",
+                        "constructor": "vertical-box",
+                        "children": [ {
+                            "type": "component",
+                            "constructor": "video-player",
+                            "id": "video"
+                        } ]
+                    }
+                }
+            ],
+            "components": {
+                "video": { "priority": "required" },
+                "info": { "priority": "optional" }
+            }
+        }
+    },
+    "profiles": {
+        "vertical": { "displayAspectRatio": { "max": { "excluded": 1} } },
+        "horizontal": { "displayAspectRatio": { "min": 1 } }
+    }
+}
