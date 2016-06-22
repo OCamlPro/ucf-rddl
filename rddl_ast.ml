@@ -34,13 +34,13 @@ and view =
 and container =
   { container_extensible : bool ;
     container_constructor : string ;
-    container_parameters : Json_repr.value option ;
+    container_parameters : Json_repr.ezjsonm option ;
     container_priority : priority }
 
 and component =
   { component_aspect_ratio : float range ;
     component_constructor : string ;
-    component_parameters : Json_repr.value option ;
+    component_parameters : Json_repr.ezjsonm option ;
     component_priority : priority }
 
 and priority =
@@ -74,8 +74,8 @@ and three_steps_level = Low | Normal | High
 and element =
   | Container of container id * element list
   | Component of component id
-  | Anonymous_container of string * Json_repr.value option * element list
-  | Anonymous_component of string * Json_repr.value option
+  | Anonymous_container of string * Json_repr.ezjsonm option * element list
+  | Anonymous_component of string * Json_repr.ezjsonm option
 
 and constructor = string
 
@@ -170,7 +170,7 @@ let container_encoding =
   obj4
     (dft "extensible" bool false)
     (req "constructor" string)
-    (opt "parameters" any_value)
+    (opt "parameters" any_ezjson_value)
     (req "priority" priority_encoding)
 
 let component_encoding =
@@ -194,7 +194,7 @@ let component_encoding =
   obj4
     (dft "aspect_ratio" (range_encoding float) any)
     (req "constructor" string)
-    (opt "parameters" any_value)
+    (opt "parameters" any_ezjson_value)
     (req "priority" priority_encoding)
 
 let profile_encoding =
@@ -269,7 +269,7 @@ let element_encoding =
         (obj4
            (req "type" (string_enum ["container", ()]))
            (req "constructor" string)
-           (opt "parameters" any_value)
+           (opt "parameters" any_ezjson_value)
            (req "children" (list element_encoding)))
         (function Anonymous_container (params, cstr, children) ->
            Some ((), params, cstr,children) | _ -> None)
@@ -285,7 +285,7 @@ let element_encoding =
         (obj3
            (req "type" (string_enum ["component", ()]))
            (req "constructor" string)
-           (opt "parameters" any_value))
+           (opt "parameters" any_ezjson_value))
         (function Anonymous_component (params, cstr) ->
            Some ((), params, cstr) | _ -> None)
         (fun ((), params, cstr) ->

@@ -70,7 +70,7 @@ and container =
     (** Tells if the contents can be updated from the code.*)
     container_constructor : string ;
     (** The Container's constructor. *)
-    container_parameters : Json_repr.value option ;
+    container_parameters : Json_repr.ezjsonm option ;
     (** Container dependent parameters as a generic JSON value. *)
     container_priority : priority
     (** The element's display priority. *) }
@@ -81,7 +81,7 @@ and component =
     (** The aspect ratios supported by the code. *)
     component_constructor : string ;
     (** The Component's constructor. *)
-    component_parameters : Json_repr.value option ;
+    component_parameters : Json_repr.ezjsonm option ;
     (** Component dependent parameters as a generic JSON value. *)
     component_priority : priority
     (** The element's display priority. *) }
@@ -131,8 +131,8 @@ and three_steps_level = Low | Normal | High
 and element =
   | Container of container id * element list
   | Component of component id
-  | Anonymous_container of string * Json_repr.value option * element list
-  | Anonymous_component of string * Json_repr.value option
+  | Anonymous_container of string * Json_repr.ezjsonm option * element list
+  | Anonymous_component of string * Json_repr.ezjsonm option
 
 (** The backend-dependent container/component kind. *)
 and constructor = string
