@@ -3,6 +3,7 @@ MLS = \
   rddl_profile.ml \
   rddl_checker.ml \
   rddl_yojson.ml \
+  rddl_renderer.ml \
   rddl_profiler.ml \
   rddl_profiler_demo.ml \
   rddl_checker_main.ml
@@ -11,8 +12,9 @@ MLIS = \
   rddl_profile.mli \
   rddl_checker.mli \
   rddl_yojson.mli \
+  rddl_renderer.mli \
   rddl_profiler.mli
-PACKAGES = yojson ocplib-json-typed
+PACKAGES = yojson ocplib-json-typed.browser
 WITH_JS_PACKAGE = \
   rddl-profiler-demo.byte \
   rddl_client.cma
