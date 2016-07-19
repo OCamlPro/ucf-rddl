@@ -7,14 +7,12 @@
 *.cmx
 *.cmxs
 *.cmxa
-
-# ocamlbuild working directory
-_build/
-
-# ocamlbuild targets
+*~
 *.byte
 *.native
 
-# oasis generated files
-setup.data
-setup.log
+rddl-checker
+rddl-profiler-demo.byte
+rddl-profiler-demo.js
+rddl-renderer-demo.byte
+rddl-renderer-demo.js

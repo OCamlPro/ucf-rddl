@@ -2,15 +2,13 @@
     "pages": {
         "player": {
             "views": [
-                /* 0: horizontal / fullscreen */ {
-                    "profiles": [ "horizontal" ],
+                {   "profiles": [ "horizontal" ],
                     "document": {
                         "type": "component",
                         "id": "video"
                     }
                 },
-                /* 1: vertical / app */ {
-                    "profiles": [ "vertical" ],
+                {   "profiles": [ "vertical" ],
                     "document": {
                         "type": "container",
                         "constructor": "vertical-box",

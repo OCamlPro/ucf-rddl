@@ -4,6 +4,7 @@ MLS = \
   rddl_checker.ml \
   rddl_yojson.ml \
   rddl_renderer.ml \
+  rddl_renderer_demo.ml \
   rddl_profiler.ml \
   rddl_profiler_demo.ml \
   rddl_checker_main.ml
@@ -14,17 +15,19 @@ MLIS = \
   rddl_yojson.mli \
   rddl_renderer.mli \
   rddl_profiler.mli
-PACKAGES = yojson ocplib-json-typed.browser
+PACKAGES = yojson ocplib-json-typed
 WITH_JS_PACKAGE = \
   rddl-profiler-demo.byte \
+  rddl-renderer-demo.byte \
   rddl_client.cma
 WITH_JS_SYNTAX = \
   rddl_profiler.cmo \
   rddl_profiler_demo.cmo \
+  rddl_renderer_demo.cmo \
   .depend
 
 OPTIONS = $(patsubst %, -package %, $(PACKAGES))
-$(WITH_JS_PACKAGE): PACKAGES+=js_of_ocaml
+$(WITH_JS_PACKAGE): PACKAGES+=js_of_ocaml ocplib-json-typed.browser
 $(WITH_JS_SYNTAX): PACKAGES+=js_of_ocaml.syntax
 $(WITH_JS_SYNTAX): OPTIONS+=-syntax camlp4o
 
@@ -34,6 +37,7 @@ all: \
   rddl.cmxa \
   rddl_client.cma \
   rddl-profiler-demo.js \
+  rddl-renderer-demo.js \
   rddl_schema.json
 
 rddl_schema.json: rddl.cma
@@ -43,6 +47,11 @@ rddl_schema.json: rddl.cma
 rddl-profiler-demo.byte: \
   rddl_client.cma \
   rddl_profiler_demo.cmo
+	ocamlfind ocamlc -g $(OPTIONS) -linkpkg $^ -o $@
+
+rddl-renderer-demo.byte: \
+  rddl_client.cma \
+  rddl_renderer_demo.cmo
 	ocamlfind ocamlc -g $(OPTIONS) -linkpkg $^ -o $@
 
 rddl-checker: \
@@ -66,7 +75,8 @@ rddl.cma: \
 
 rddl_client.cma: \
   rddl.cma \
-  rddl_profiler.cmo
+  rddl_profiler.cmo \
+  rddl_renderer.cmo
 	ocamlfind ocamlc $(OPTIONS) $^ -a -o $@
 
 %.cmo: %.ml
