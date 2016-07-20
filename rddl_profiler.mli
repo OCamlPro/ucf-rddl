@@ -39,7 +39,7 @@ val state : updates -> profile
     running, it is deferred to the end of the callback. If several
     changes arise, the last one is deferred, the previous ones are
     dropped. *)
-val on_update : updates -> (profile -> unit Lwt.t) -> unit
+val on_update : updates -> (profile -> unit Lwt.t) -> unit Lwt.t
 
 (** One cycle of {!on_update}, to use in custom loops. *)
 val wait_next_update : updates -> profile Lwt.t
@@ -59,7 +59,7 @@ val selection : changes -> profile id * profile
     changes. Also called initially with the first selection. The given
     profile is the same as the one returned by {!selection}. Same
     buffering mechanism as {!on_update}. *)
-val on_change : changes -> (profile id * profile -> unit Lwt.t) -> unit
+val on_change : changes -> (profile id * profile -> unit Lwt.t) -> unit Lwt.t
 
 (** One cycle of {!on_change}, to use in custom loops. *)
 val wait_next_change : changes -> (profile id * profile) Lwt.t

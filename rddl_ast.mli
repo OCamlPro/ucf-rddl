@@ -70,7 +70,7 @@ and container =
     (** Tells if the contents can be updated from the code.*)
     container_constructor : string ;
     (** The Container's constructor. *)
-    container_parameters : Json_repr.ezjsonm option ;
+    container_parameters : Json_repr.any option ;
     (** Container dependent parameters as a generic JSON value. *)
     container_priority : priority
     (** The element's display priority. *) }
@@ -81,7 +81,7 @@ and component =
     (** The aspect ratios supported by the code. *)
     component_constructor : string ;
     (** The Component's constructor. *)
-    component_parameters : Json_repr.ezjsonm option ;
+    component_parameters : Json_repr.any option ;
     (** Component dependent parameters as a generic JSON value. *)
     component_priority : priority
     (** The element's display priority. *) }
@@ -131,8 +131,8 @@ and three_steps_level = Low | Normal | High
 and element =
   | Container of container id * element list
   | Component of component id
-  | Anonymous_container of string * Json_repr.ezjsonm option * element list
-  | Anonymous_component of string * Json_repr.ezjsonm option
+  | Anonymous_container of string * Json_repr.any option * element list
+  | Anonymous_component of string * Json_repr.any option
 
 (** The backend-dependent container/component kind. *)
 and constructor = string
@@ -150,6 +150,12 @@ and 'a range =
     (** The inclusive minimum. *)
     max : ('a * [ `Closed | `Open ]) option
     (** The inclusive maximum. *) }
+
+(** Retrieve a component from its path. *)
+val find_container : ui -> page id -> container id -> container option
+
+(** Retrieve a component from its path. *)
+val find_component : ui -> page id -> component id -> component option
 
 (** The JSON encoding for {!ui}. *)
 val ui_encoding : ui Json_encoding.encoding

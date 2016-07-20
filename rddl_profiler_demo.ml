@@ -155,5 +155,4 @@ let () =
             let text = Dom_html.window##document##createTextNode (Js.string text) in
             elt##innerHTML <- Js.string message ;
             ignore (elt##appendChild ((text :> Dom.node Js.t)))) ;
-       Lwt.return ()) ;
-  Lwt.return ()
+       Lwt.return ())

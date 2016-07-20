@@ -148,7 +148,7 @@ let on_update { listeners ; state } body =
       last := `None ;
       body profile >>= fun () ->
       loop () in
-  Lwt.async loop
+  loop ()
 
 (* changes monitoring ***************************************************)
 

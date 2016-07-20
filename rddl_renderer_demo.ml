@@ -21,91 +21,15 @@ open Rddl_ast
 open Rddl_profile
 open Lwt.Infix
 
+module Browser_encoding =
+  Json_encoding.Make (Json_repr_browser.Repr)
+
 let pretty_print_profile profile =
-  let open Format in
-  let rec pp_range pp ppf = function
-    | { min = None ; max = None } ->
-      fprintf ppf "any"
-    | { min = Some (min, `Closed) ; max = Some (max, `Closed) } when min = max ->
-      fprintf ppf "only %a" pp min
-    | { min = Some min ; max = Some max } ->
-      fprintf ppf "%a &&& %a"
-        (pp_range pp) { min = Some min ; max = None }
-        (pp_range pp) { max = Some max ; min = None }
-    | { min = Some (min, `Closed) ; max = None } ->
-      fprintf ppf "from %a" pp min
-    | { min = Some (min, `Open) ; max = None } ->
-      fprintf ppf "above %a" pp min
-    | { min = None ; max = Some (max, `Closed) } ->
-      fprintf ppf "upto %a" pp max
-    | { min = None ; max = Some (max, `Open) } ->
-      fprintf ppf "below %a" pp max in
-  let pp_output_level ppf = function
-    | Textual -> fprintf ppf "Textual"
-    | Simplified -> fprintf ppf "Simplified"
-    | Fancy -> fprintf ppf "Fancy" in
-  let pp_interactivity_level ppf = function
-    | View_only -> fprintf ppf "View_only"
-    | Pointer -> fprintf ppf "Pointer"
-    | Single_touch -> fprintf ppf "Single_touch"
-    | Multi_touch -> fprintf ppf "Multi_touch" in
-  let pp_three_steps_level ppf = function
-    | Low -> fprintf ppf "Low"
-
-    | Normal -> fprintf ppf "Normal"
-    | High -> fprintf ppf "High" in
-  asprintf
-    "@[<v 2>{ \
-     output = %a ;@,\
-     interactivity = %a ;@,\
-     display_width = %a ;@,\
-     physical_display_width = %a ;@,\
-     display_aspect_ratio = %a ;@,\
-     device_width = %a ;@,\
-     physical_device_width = %a ;@,\
-     device_aspect_ratio = %a ;@,\
-     contrast = %a ;@,\
-     ink = %a ;@,\
-     zoom = %a }@]"
-    (pp_range pp_output_level) profile.output
-    (pp_range pp_interactivity_level) profile.interactivity
-    (pp_range (fun ppf -> fprintf ppf "%d")) profile.display_width
-    (pp_range (fun ppf -> fprintf ppf "%d")) profile.physical_display_width
-    (pp_range (fun ppf -> fprintf ppf "%.3f")) profile.display_aspect_ratio
-    (pp_range (fun ppf -> fprintf ppf "%d")) profile.device_width
-    (pp_range (fun ppf -> fprintf ppf "%d")) profile.physical_device_width
-    (pp_range (fun ppf -> fprintf ppf "%.3f")) profile.device_aspect_ratio
-    (pp_range pp_three_steps_level) profile.contrast
-    (pp_range pp_three_steps_level) profile.ink
-    (pp_range pp_three_steps_level) profile.zoom
-
-let default_profiles =
-  [ "small-vertical",
-    profile
-      ~display_width: (below 400)
-      ~display_aspect_ratio: (below 1.) () ;
-    "medium-vertical",
-    profile
-      ~display_width: (from 400 &&& below 768)
-      ~display_aspect_ratio: (below 1.) () ;
-    "large-vertical",
-    profile
-      ~display_width: (from 768)
-      ~display_aspect_ratio: (below 1.) () ;
-    "small-horizontal",
-    profile
-      ~display_width: (below 400)
-      ~display_aspect_ratio: (from 1.) () ;
-    "medium-horizontal",
-    profile
-      ~display_width: (from 400 &&& below 768)
-      ~display_aspect_ratio: (from 1.) () ;
-    "large-horizontal",
-    profile
-      ~display_width: (from 768)
-      ~display_aspect_ratio: (from 1.) () ]
+  let json = Browser_encoding.construct Rddl_ast.profile_encoding profile in
+  Json_repr_browser.stringify ~indent: 2 json
 
 let () =
+  Random.self_init () ;
   Lwt.async @@ fun () ->
   let hash = Url.Current.get_fragment () in
   Lwt.catch
@@ -118,42 +42,49 @@ let () =
        if code <> 200 then
          Lwt.fail_with ("HTTP code " ^ string_of_int code)
        else
-         let module Browser_encoding =
-           Json_encoding.Make (Json_repr_browser.Repr) in
-         let profiles =
-           let json = Js._JSON##parse (content) in
+         let { profiles ; pages } as ui =
+           let json = Json_repr_browser.parse_js_string content in
            Browser_encoding.destruct Rddl_ast.ui_encoding json in
-         let message = "Using profiles from `" ^ hash ^ ".rddl.json`.\n\n" in
-         Lwt.return (profiles.profiles, message))
-    (function
-      | Not_found ->
-        Lwt.return (default_profiles, "Using built-in profile set.\n\n")
-      | exn ->
-        let message =
-          Format.asprintf "@[<v 2><strong>Error loading `%s.rddl.json`:</strong>@,%a@]@.@.\
-                           Using built-in profile set.@.@."
-            hash
-            (fun ppf -> Json_encoding.print_error ppf) exn in
-        Lwt.return (default_profiles, message))
-  >>= fun (profiles, message) ->
-  let updates = Rddl_profiler.window in
-  let changes = Rddl_profiler.changes updates profiles in
-  Rddl_profiler.on_update updates
-    (fun profile ->
-       let (id, profile) = Rddl_profiler.selection changes in
-       let text =
-         List.fold_left
-           (fun acc (pid, _) ->
-              if pid = id then
-                acc ^"\n> " ^ pid
-              else
-                acc ^"\n  " ^ pid)
-           (pretty_print_profile profile ^ "\n") profiles in
-       Js.Opt.iter
-         (Dom_html.window##document##querySelector (Js.string "#output"))
-         (fun elt ->
-            let text = Dom_html.window##document##createTextNode (Js.string text) in
-            elt##innerHTML <- Js.string message ;
-            ignore (elt##appendChild ((text :> Dom.node Js.t)))) ;
-       Lwt.return ()) ;
-  Lwt.return ()
+         let updates = Rddl_profiler.window in
+         let changes = Rddl_profiler.changes updates profiles in
+         let renderer_ctx =
+           let genstyle () =
+             let r = Random.int 60 + 120 in
+             let g = Random.int 60 + 120 in
+             let b = Random.int 60 + 120 in
+             Format.asprintf
+               "display: block; \
+                background-color: #%02X%02X%02X;" r g b in
+           let construct_component ~page ~id ~constructor ~parameters ~profile () =
+             let div = Dom_html.createDiv Dom_html.document in
+             div##setAttribute (Js.string "style", Js.string (genstyle ())) ;
+             div##innerHTML <- Js.string
+                 (Format.asprintf "%s/%s/%s/%s" page id constructor profile) ;
+             Lwt.return (`Constructed div) in
+           let construct_container ~page ~id ~constructor ~parameters ~profile children =
+             let div = Dom_html.createDiv Dom_html.document in
+             div##setAttribute (Js.string "style", Js.string (genstyle ())) ;
+             div##innerHTML <- Js.string
+                 (Format.asprintf "%s/%s/%s/%s" page id constructor profile) ;
+             List.iter
+               (fun child ->
+                  let child = (child :> Dom.node Js.t) in
+                  ignore (div##appendChild (child)))
+               children ;
+             Lwt.return (`Constructed div) in
+           Rddl_renderer.window
+             ~construct_component
+             ~construct_container
+             ui in
+         Rddl_profiler.on_update updates
+           (fun profile ->
+              let (id, profile) = Rddl_profiler.selection changes in
+              Firebug.console##debug (Js.string ("Profile: `" ^ id ^ "`."));
+              Rddl_renderer.render renderer_ctx (fst (List.hd pages)) id))
+    (function exn ->
+       let message =
+         Format.asprintf "@[<v 2>Error loading `%s.rddl.json`:@,%a@]"
+           hash
+           (fun ppf -> Json_encoding.print_error ppf) exn in
+       Firebug.console##error (Js.string message);
+       Lwt.return ())

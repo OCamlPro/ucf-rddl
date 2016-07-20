@@ -22,6 +22,7 @@ WITH_JS_PACKAGE = \
   rddl_client.cma
 WITH_JS_SYNTAX = \
   rddl_profiler.cmo \
+  rddl_renderer.cmo \
   rddl_profiler_demo.cmo \
   rddl_renderer_demo.cmo \
   .depend
