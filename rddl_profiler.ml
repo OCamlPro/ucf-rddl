@@ -127,22 +127,30 @@ let wait_next_update { listeners } =
 
 let on_update { listeners ; state } body =
   let last = ref (`Some !state) in
-  let waiter = ref (Lwt.task ()) in
+  let waiter = ref (Some (Lwt.task ())) in
   let rec cb () = function
     | `Stop ->
-      Lwt.cancel (fst !waiter) ;
-      last := `Stop
+      last := `Stop ;
+      begin match !waiter with
+        | None -> ()
+        | Some (t, _) -> Lwt.cancel t
+      end
     | `Update profile ->
       last := `Some profile ;
       listeners := cb () :: !listeners ;
-      Lwt.wakeup (snd !waiter) () in
+      begin match !waiter with
+        | None -> ()
+        | Some (_, u) ->
+          waiter := None ;
+          Lwt.wakeup u ()
+      end in
   listeners := cb () :: !listeners ;
   let rec loop () =
     match !last with
     | `Stop -> Lwt.return ()
     | `None ->
       let t, u = Lwt.task () in
-      waiter := (t, u) ;
+      waiter := Some (t, u) ;
       t >>= loop
     | `Some profile ->
       last := `None ;

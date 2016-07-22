@@ -28,6 +28,22 @@ let pretty_print_profile profile =
   let json = Browser_encoding.construct Rddl_ast.profile_encoding profile in
   Json_repr_browser.stringify ~indent: 2 json
 
+let do_anim t ~start ~step ~stop =
+  start () >>= fun () ->
+  step 0. >>= fun () ->
+  let t0 = Unix.gettimeofday () in
+  let rec loop () =
+    let now = Unix.gettimeofday () in
+    if now -. t0 > t then
+      Lwt.return ()
+    else
+      step (now -. t0) >>= fun () ->
+      Lwt_js.sleep 0.02 >>= fun () ->
+      loop () in
+  loop () >>= fun () ->
+  step t >>= fun () ->
+  stop ()
+
 let () =
   Random.self_init () ;
   Lwt.async @@ fun () ->
@@ -76,15 +92,48 @@ let () =
              ~construct_component
              ~construct_container
              ui in
-         Rddl_profiler.on_update updates
+         let transition_div =
+           let transition_div_style =
+             "background-color: white; \
+              position: fixed; \
+             left: 0; right: 0; bottom: 0; top:0;" in
+           let div = Dom_html.createDiv Dom_html.document in
+           div##setAttribute (Js.string "style", Js.string transition_div_style) ;
+           ignore (Dom_html.document##body##appendChild ((div :> Dom.node Js.t))) ;
+           div in
+         let rec start_transition () =
+           do_anim 0.1
+             ~start:(fun () ->
+                 transition_div##style##display <- Js.string "block" ;
+                 Lwt.return ())
+             ~step:(fun t ->
+                 let d = Printf.sprintf "%0.2f" (1. -. (t /. 0.1)) in
+                 transition_div##style##opacity <- Js.Optdef.return (Js.string d) ;
+                 Lwt.return ())
+             ~stop:(fun () ->
+                 transition_div##style##display <- Js.string "none" ;
+                 Lwt.return ()) in
+         let rec end_transition () =
+           do_anim 0.1
+             ~start:(fun () ->
+                 transition_div##style##display <- Js.string "block" ;
+                 Lwt.return ())
+             ~step:(fun t ->
+                 let d = Printf.sprintf "%0.2f" (t /. 0.1) in
+                 transition_div##style##opacity <- Js.Optdef.return (Js.string d) ;
+                 Lwt.return ())
+             ~stop:(fun () ->
+                 transition_div##style##display <- Js.string "none" ;
+                 Lwt.return ()) in
+         Rddl_profiler.on_change changes
            (fun profile ->
+              end_transition () >>= fun () ->
               let (id, profile) = Rddl_profiler.selection changes in
               Firebug.console##debug (Js.string ("Profile: `" ^ id ^ "`."));
-              Rddl_renderer.render renderer_ctx (fst (List.hd pages)) id))
+              Rddl_renderer.render renderer_ctx (fst (List.hd pages)) id >>= fun () ->
+              start_transition ()))
     (function exn ->
        let message =
-         Format.asprintf "@[<v 2>Error loading `%s.rddl.json`:@,%a@]"
-           hash
-           (fun ppf -> Json_encoding.print_error ppf) exn in
+         Format.asprintf "@[<v 0>%a@." (fun ppf -> Json_encoding.print_error ppf) exn in
        Firebug.console##error (Js.string message);
        Lwt.return ())
