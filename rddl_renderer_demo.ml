@@ -61,7 +61,11 @@ let () =
          let { profiles ; pages } as ui =
            let json = Json_repr_browser.parse_js_string content in
            Browser_encoding.destruct Rddl_ast.ui_encoding json in
-         let updates = Rddl_profiler.window in
+         let updates =
+           Js.Opt.case
+             (Dom_html.window##document##getElementById (Js.string "rddl-demo-container"))
+             (fun () -> Rddl_profiler.window)
+             (fun div -> Rddl_profiler.div div) in
          let changes = Rddl_profiler.changes updates profiles in
          let renderer_ctx =
            let genstyle () =
@@ -88,10 +92,12 @@ let () =
                   ignore (div##appendChild (child)))
                children ;
              Lwt.return (`Constructed div) in
-           Rddl_renderer.window
-             ~construct_component
-             ~construct_container
-             ui in
+           Js.Opt.case
+             (Dom_html.window##document##getElementById (Js.string "rddl-demo-container"))
+             (fun () ->
+                Rddl_renderer.window ~construct_component ~construct_container ui)
+             (fun div ->
+                Rddl_renderer.div div ~construct_component ~construct_container ui) in
          let transition_div =
            let transition_div_style =
              "background-color: white; \

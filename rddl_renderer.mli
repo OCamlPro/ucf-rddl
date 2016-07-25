@@ -87,6 +87,16 @@ val window :
   ?rebind_container : container_rebinder ->
   ui -> context
 
+val div :
+  Dom_html.divElement Js.t ->
+  ?construct_component : component_constructor ->
+  ?destruct_component : component_destructor ->
+  ?rebind_component : component_rebinder ->
+  ?construct_container : container_constructor ->
+  ?destruct_container : container_destructor ->
+  ?rebind_container : container_rebinder ->
+  ui -> context
+
 val register_global_component_constructor :
   component_constructor -> unit
 

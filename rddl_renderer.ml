@@ -169,8 +169,8 @@ let main_container_style =
   "position: absolute; \
    left: 0px; right: 0px; top: 0px; bottom: 0px;"
 
-let window
-    ?main_container_id: (id = main_container_id)
+let div
+    container
     ?(construct_component =
       fun ~page ~id ~constructor ~parameters ~profile () ->
         Lwt.return `Default)
@@ -190,16 +190,6 @@ let window
       fun ~page ~id ~constructor ~parameters ~previous_profile ~new_profile elt children ->
         Lwt.return `Default)
     ui =
-  let container =
-    Js.Opt.case
-      (Dom_html.window##document##getElementById (Js.string id))
-      (fun () ->
-         let div = Dom_html.createDiv (Dom_html.window##document) in
-         div##setAttribute (Js.string "id", Js.string id) ;
-         div##setAttribute (Js.string "style", Js.string main_container_style) ;
-         ignore (Dom_html.window##document##body##appendChild ((div :> Dom.node Js.t))) ;
-         div)
-      (fun div -> div) in
   { container ;
     root = container (* dummy *) ;
     ui ; page_and_profile_ids = None ;
@@ -211,6 +201,33 @@ let window
     construct_container ;
     destruct_container ;
     rebind_container }
+
+let window
+    ?main_container_id: (id = main_container_id)
+    ?construct_component
+    ?destruct_component
+    ?rebind_component
+    ?construct_container
+    ?destruct_container
+    ?rebind_container ui =
+  let container =
+    Js.Opt.case
+      (Dom_html.window##document##getElementById (Js.string id))
+      (fun () ->
+         let div = Dom_html.createDiv (Dom_html.window##document) in
+         div##setAttribute (Js.string "id", Js.string id) ;
+         div##setAttribute (Js.string "style", Js.string main_container_style) ;
+         ignore (Dom_html.window##document##body##appendChild ((div :> Dom.node Js.t))) ;
+         div)
+      (fun div -> div) in
+  div
+    container
+    ?construct_component
+    ?destruct_component
+    ?rebind_component
+    ?construct_container
+    ?destruct_container
+    ?rebind_container ui
 
 let render ctx page_id profile_id =
   let rec chained_call = function

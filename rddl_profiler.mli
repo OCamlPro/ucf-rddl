@@ -25,6 +25,9 @@ type updates
 (** Monitors the main window. *)
 val window : updates
 
+(** Monitors a [div] element. *)
+val div : Dom_html.divElement Js.t -> updates
+
 (** Stop updating the profile. *)
 val stop : updates -> unit
 

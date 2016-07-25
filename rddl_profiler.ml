@@ -21,28 +21,12 @@ open Rddl_ast
 open Rddl_profile
 open Lwt.Infix
 
-(* state detection ******************************************************)
+(* update monitoring ****************************************************)
 
-let build_state
-    ~display_width
-    ~physical_display_width
-    ~display_aspect_ratio
-    ~device_width
-    ~physical_device_width
-    ~device_aspect_ratio =
-  { output = any ;
-    interactivity = from Pointer ;
-    display_width = only display_width ;
-    physical_display_width = only physical_display_width ;
-    display_aspect_ratio = only display_aspect_ratio ;
-    device_width = only device_width ;
-    physical_device_width = only physical_device_width ;
-    device_aspect_ratio = only device_aspect_ratio ;
-    contrast = any ;
-    ink = any ;
-    zoom = any ;
-    connected = [] ;
-    bandwidth = [] }
+type updates =
+  { state : profile ref ;
+    stop : unit -> unit ;
+    listeners : ([ `Stop | `Update of profile ] -> unit) list ref }
 
 class type with_devicePixelRatio = object
   inherit Dom_html.window
@@ -51,52 +35,133 @@ end
 
 let window = (Js.Unsafe.coerce Dom_html.window :> with_devicePixelRatio Js.t)
 
-let window_state () =
-  let device_pixel_ratio =
-    Js.Optdef.case
-      (window##devicePixelRatio)
-      (fun () -> 1.0)
-      (fun ratio -> ratio) in
-  let unapply_device_pixel_ratio length =
-    int_of_float (float length *. device_pixel_ratio) in
-  let device_width =
-    window##screen##width in
-  let device_height =
-    window##screen##height in
-  let device_aspect_ratio =
-    float device_width /. float device_height in
-  let display_width =
-    min
-      (Js.Optdef.case
-         (window##innerWidth)
-         (fun () -> max_int)
-         (fun width -> width))
-      window##document##documentElement##clientWidth in
-  let display_height =
-    min
-      (Js.Optdef.case
-         (window##innerHeight)
-         (fun () -> max_int)
-         (fun height -> height))
-      window##document##documentElement##clientHeight in
-  let display_aspect_ratio =
-    float display_width /. float display_height in
-  build_state
-    ~display_width
-    ~physical_display_width: (unapply_device_pixel_ratio display_width)
-    ~display_aspect_ratio
-    ~device_width
-    ~physical_device_width: (unapply_device_pixel_ratio device_width)
-    ~device_aspect_ratio
-
-(* update monitoring ****************************************************)
-
-type updates =
-  { state : profile ref ;
-    stop : unit -> unit ;
-    listeners : ([ `Stop | `Update of profile ] -> unit) list ref }
+let div div =
+  let div_state () =
+    let device_pixel_ratio =
+      Js.Optdef.case
+        (window##devicePixelRatio)
+        (fun () -> 1.0)
+        (fun ratio -> ratio) in
+    let unapply_device_pixel_ratio length =
+      int_of_float (float length *. device_pixel_ratio) in
+    let device_width =
+      div##clientWidth in
+    let device_height =
+      div##clientHeight in
+    let device_aspect_ratio =
+      float device_width /. float device_height in
+    let display_width =
+      device_width in
+    let display_height =
+      device_height in
+    let display_aspect_ratio =
+      float display_width /. float display_height in
+    { output = any ;
+      interactivity = from Pointer ;
+      display_width = only display_width ;
+      physical_display_width = only (unapply_device_pixel_ratio display_width) ;
+      display_aspect_ratio = only display_aspect_ratio ;
+      device_width = only device_width ;
+      physical_device_width = only (unapply_device_pixel_ratio device_width) ;
+      device_aspect_ratio = only device_aspect_ratio ;
+      contrast = any ;
+      ink = any ;
+      zoom = any ;
+      connected = [] ;
+      bandwidth = [] } in
+  let state = ref (div_state ()) in
+  let listeners = ref [] in
+  let stop () = List.iter (fun cb -> cb `Stop) !listeners in
+  let make_size_witness () =
+    let inner = Dom_html.createDiv Dom_html.document in
+    let outer = Dom_html.createDiv Dom_html.document in
+    ignore (div##appendChild ((outer :> Dom.node Js.t))) ;
+    ignore (outer##appendChild ((inner :> Dom.node Js.t))) ;
+    outer##style##position <- Js.string "absolute" ;
+    outer##style##left <- Js.string "0px" ;
+    outer##style##top <- Js.string "0px" ;
+    outer##style##width <- Js.string "100%" ;
+    outer##style##height <- Js.string "100%" ;
+    outer##style##overflow <- Js.string "hidden" ;
+    outer##style##pointerEvents<- Js.string "none" ;
+    inner, outer in
+  let mammoth_inner, mammoth_outer = make_size_witness () in
+  let elephant_inner, elephant_outer = make_size_witness () in
+  let update_sizers () =
+    let w = div##clientWidth in
+    let h = div##clientHeight in
+    elephant_inner##style##width <- Js.string (string_of_int (w + 1) ^ "px") ;
+    elephant_inner##style##height <- Js.string (string_of_int (h + 1) ^ "px") ;
+    mammoth_inner##style##width <- Js.string "200%" ;
+    mammoth_inner##style##height <- Js.string "200%" ;
+    elephant_outer##scrollLeft <- 1 ;
+    elephant_outer##scrollTop <- 1 ;
+    mammoth_outer##scrollLeft <- h ;
+    mammoth_outer##scrollTop <- h in
+  let update () =
+    update_sizers () ;
+    state := div_state () ;
+    let pre = !listeners in
+    listeners := [] ;
+    List.iter (fun cb -> cb (`Update !state)) pre in
+  Lwt.async (fun () ->
+      update_sizers () ;
+      Lwt_js.yield () >>= fun () ->
+      ignore
+        (Dom_events.listen
+           ~capture:true mammoth_outer Dom_events.Typ.scroll
+           (fun _ _ -> ignore (update ()) ; true)) ;
+      ignore
+        (Dom_events.listen
+           ~capture:true elephant_outer Dom_events.Typ.scroll
+           (fun _ _ -> ignore (update ()) ; true)) ;
+      Lwt.return ()) ;
+  { state ; stop ; listeners }
 
 let window =
+  let window_state () =
+    let device_pixel_ratio =
+      Js.Optdef.case
+        (window##devicePixelRatio)
+        (fun () -> 1.0)
+        (fun ratio -> ratio) in
+    let unapply_device_pixel_ratio length =
+      int_of_float (float length *. device_pixel_ratio) in
+    let device_width =
+      window##screen##width in
+    let device_height =
+      window##screen##height in
+    let device_aspect_ratio =
+      float device_width /. float device_height in
+    let display_width =
+      min
+        (Js.Optdef.case
+           (window##innerWidth)
+           (fun () -> max_int)
+           (fun width -> width))
+        window##document##documentElement##clientWidth in
+    let display_height =
+      min
+        (Js.Optdef.case
+           (window##innerHeight)
+           (fun () -> max_int)
+           (fun height -> height))
+        window##document##documentElement##clientHeight in
+    let display_aspect_ratio =
+      float display_width /. float display_height in
+    { output = any ;
+      interactivity = from Pointer ;
+      display_width = only display_width ;
+      physical_display_width = only (unapply_device_pixel_ratio display_width) ;
+      display_aspect_ratio = only display_aspect_ratio ;
+      device_width = only device_width ;
+      physical_device_width = only (unapply_device_pixel_ratio device_width) ;
+      device_aspect_ratio = only device_aspect_ratio ;
+      contrast = any ;
+      ink = any ;
+      zoom = any ;
+      connected = [] ;
+      bandwidth = [] } in
   let state = ref (window_state ()) in
   let listeners = ref [] in
   let stop () = List.iter (fun cb -> cb `Stop) !listeners in
