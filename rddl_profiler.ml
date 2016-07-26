@@ -96,7 +96,7 @@ let div div =
     mammoth_inner##style##height <- Js.string "200%" ;
     elephant_outer##scrollLeft <- 1 ;
     elephant_outer##scrollTop <- 1 ;
-    mammoth_outer##scrollLeft <- h ;
+    mammoth_outer##scrollLeft <- w ;
     mammoth_outer##scrollTop <- h in
   let update () =
     update_sizers () ;

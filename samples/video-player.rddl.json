@@ -20,6 +20,19 @@
                             "id": "info"
                         } ]
                     }
+                },
+                {   "profiles": [ "large" ],
+                    "document": {
+                        "type": "container",
+                        "constructor": "horizontal-box",
+                        "children": [ {
+                            "type": "component",
+                            "id": "video"
+                        }, {
+                            "type": "component",
+                            "id": "info"
+                        } ]
+                    }
                 }
             ],
             "components": {
@@ -36,6 +49,7 @@
     },
     "profiles": {
         "vertical": { "displayAspectRatio": { "max": { "excluded": 1} } },
-        "horizontal": { "displayAspectRatio": { "min": 1 } }
+        "horizontal": { "displayAspectRatio": { "min": 1, "max": { "excluded": 1.5} } },
+        "large": { "displayAspectRatio": { "min": 1.5 } }
     }
 }
