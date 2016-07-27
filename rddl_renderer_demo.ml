@@ -61,11 +61,32 @@ let () =
          let { profiles ; pages } as ui =
            let json = Json_repr_browser.parse_js_string content in
            Browser_encoding.destruct Rddl_ast.ui_encoding json in
-         let updates =
+         let state_text_signal, set_state_text = React.S.create "" in
+         let profile_id_signal, set_profile_id = React.S.create "" in
+         let panel_contents =
+           let open Tyxml_js.Html in
+           [ h3 [ pcdata "Pages:" ] ;
+             div (List.map (fun (id, _) -> button [ pcdata id ]) pages) ;
+             h3 [ pcdata "State:" ] ;
+             pre [ Tyxml_js.R.Html.pcdata state_text_signal ] ;
+             h3 [ pcdata "Profile:" ] ;
+             ul (List.map
+                   (fun (id, _) ->
+                      let style =
+                        React.S.map
+                          (fun id' -> if id = id' then "" else "list-style-type: none;")
+                          profile_id_signal in
+                      li ~a: [ Tyxml_js.R.Html.a_style style ] [ pcdata id ])
+                   profiles)
+           ]
+         in
+         Tyxml_js.Register.id "rddl-demo-panel" panel_contents ;
+         let container =
            Js.Opt.case
              (Dom_html.window##document##getElementById (Js.string "rddl-demo-container"))
-             (fun () -> Rddl_profiler.window)
-             (fun div -> Rddl_profiler.div div) in
+             (fun () -> assert false)
+             (fun div -> div) in
+         let updates = Rddl_profiler.div container in
          let changes = Rddl_profiler.changes updates profiles in
          let renderer_ctx =
            let genstyle () =
@@ -92,20 +113,15 @@ let () =
                   ignore (div##appendChild (child)))
                children ;
              Lwt.return (`Constructed div) in
-           Js.Opt.case
-             (Dom_html.window##document##getElementById (Js.string "rddl-demo-container"))
-             (fun () ->
-                Rddl_renderer.window ~construct_component ~construct_container ui)
-             (fun div ->
-                Rddl_renderer.div div ~construct_component ~construct_container ui) in
+           Rddl_renderer.div container ~construct_component ~construct_container ui in
          let transition_div =
            let transition_div_style =
              "background-color: white; \
               position: fixed; \
-             left: 0; right: 0; bottom: 0; top:0;" in
+              left: 0; right: 0; bottom: 0; top:0;" in
            let div = Dom_html.createDiv Dom_html.document in
            div##setAttribute (Js.string "style", Js.string transition_div_style) ;
-           ignore (Dom_html.document##body##appendChild ((div :> Dom.node Js.t))) ;
+           ignore (container##appendChild ((div :> Dom.node Js.t))) ;
            div in
          let rec start_transition () =
            do_anim 0.1
@@ -131,13 +147,17 @@ let () =
              ~stop:(fun () ->
                  transition_div##style##display <- Js.string "none" ;
                  Lwt.return ()) in
-         Rddl_profiler.on_change changes
-           (fun profile ->
+         Lwt.join
+           [ (Rddl_profiler.on_update updates @@ fun profile ->
+              set_state_text (pretty_print_profile profile) ;
+              Lwt.return ()) ;
+             (Rddl_profiler.on_change changes @@ fun _ ->
               end_transition () >>= fun () ->
               let (id, profile) = Rddl_profiler.selection changes in
+              set_profile_id id ;
               Firebug.console##debug (Js.string ("Profile: `" ^ id ^ "`."));
               Rddl_renderer.render renderer_ctx (fst (List.hd pages)) id >>= fun () ->
-              start_transition ()))
+              start_transition ()) ])
     (function exn ->
        let message =
          Format.asprintf "@[<v 0>%a@." (fun ppf -> Json_encoding.print_error ppf) exn in

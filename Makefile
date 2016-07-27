@@ -28,7 +28,7 @@ WITH_JS_SYNTAX = \
   .depend
 
 OPTIONS = $(patsubst %, -package %, $(PACKAGES))
-$(WITH_JS_PACKAGE): PACKAGES+=js_of_ocaml ocplib-json-typed.browser
+$(WITH_JS_PACKAGE): PACKAGES+=js_of_ocaml js_of_ocaml.tyxml ocplib-json-typed.browser
 $(WITH_JS_SYNTAX): PACKAGES+=js_of_ocaml.syntax
 $(WITH_JS_SYNTAX): OPTIONS+=-syntax camlp4o
 
@@ -90,7 +90,7 @@ rddl_client.cma: \
 	ocamlfind ocamlopt -g $(OPTIONS) -c $<
 
 %.js: %.byte
-	js_of_ocaml --pretty $< -o $@
+	js_of_ocaml --pretty +weak.js $< -o $@
 
 .depend: $(MLS) $(MLIS) Makefile
 	ocamlfind ocamldep $(OPTIONS) $(MLS) $(MLIS) > $@
