@@ -61,62 +61,98 @@ let resolve page { containers ; components } profile root =
       Resolved_component (genid (), component) in
   resolve root
 
-type ('a, 'b) constructor =
-  page: page id ->
-  id: 'a id ->
-  constructor: string ->
-  parameters: Json_repr_browser.value option ->
-  profile: profile id ->
-  'b ->
-  [ `Constructed of Dom_html.element Js.t | `Default ] Lwt.t
+type ('param, 'result) rendering =
+  [ `Immediate of 'param -> 'result
+  | `Running of 'param -> 'result Lwt.t ]
 
-type 'a destructor =
-  page: page id ->
-  id: 'a id ->
-  constructor: string ->
-  parameters: Json_repr_browser.value option ->
-  Dom_html.element Js.t ->
-  [ `Destructed | `Default ] Lwt.t
+let (>>>) x f =
+  match f, x with
+  | `Immediate f, `Immediate x ->
+    `Immediate (fun a -> f (x a))
+  | `Immediate f, `Running x ->
+    `Running (fun a ->
+        x a >>= fun x ->
+        Lwt.return (f x))
+  | `Running f, `Running x ->
+    `Running (fun a ->
+        x a >>= fun x ->
+        f x)
+  | `Running f, `Immediate x ->
+    `Running (fun a -> f (x a))
 
-type ('a, 'b) rebinder =
-  page: page id ->
-  id: 'a id ->
-  constructor: string ->
-  parameters: Json_repr_browser.value option ->
-  previous_profile: profile id ->
-  new_profile: profile id ->
-  Dom_html.element Js.t ->
-  'b ->
-  [ `Rebound | `Reconstruct | `Default ] Lwt.t
+
+let tee fl fr =
+  match fl, fr with
+  | `Running fl, `Running fr ->
+    `Running (fun x -> fl x >>= fun () -> fr x)
+  | `Immediate fl, `Running fr ->
+    `Running (fun x -> fl x ; fr x)
+  | `Running fl, `Immediate fr ->
+    `Running (fun x -> fl x >>= fun () -> Lwt.return (fr x))
+  | `Immediate fl, `Immediate fr ->
+    `Immediate (fun x -> let () = fl x in fr x)
 
 type component_constructor =
-  (component, unit) constructor
+  page_id: page id ->
+  component_id: component id ->
+  profile_id: profile id ->
+  component ->
+  [ (unit, Dom_html.element Js.t) rendering
+  | `Default ]
+
 type component_destructor =
-  component destructor
+  page_id: page id ->
+  component_id: component id ->
+  component ->
+  [ (Dom_html.element Js.t, unit) rendering
+  | `Default ]
+
 type component_rebinder =
-  (component, unit) rebinder
+  page_id: page id ->
+  component_id: component id ->
+  previous_profile_id: profile id ->
+  new_profile_id: profile id ->
+  component ->
+  [ (Dom_html.element Js.t, Dom_html.element Js.t) rendering
+  | `Default
+  | `Reconstruct ]
+
 type container_constructor =
-  (container, Dom_html.element Js.t list) constructor
+  page_id: page id ->
+  container_id: container id ->
+  profile_id: profile id ->
+  container ->
+  [ (Dom_html.element Js.t list, Dom_html.element Js.t) rendering
+  | `Default ]
+
 type container_destructor =
-  container destructor
+  page_id: page id ->
+  container_id: container id ->
+  container ->
+  [ (Dom_html.element Js.t, unit) rendering
+  | `Default ]
+
 type container_rebinder =
-  (container, Dom_html.element Js.t list) rebinder
+  page_id: page id ->
+  container_id: container id ->
+  previous_profile_id: profile id ->
+  new_profile_id: profile id ->
+  container ->
+  [ (Dom_html.element Js.t * Dom_html.element Js.t list, Dom_html.element Js.t) rendering
+  | `Default
+  | `Reconstruct ]
 
 type context =
   { container : Dom_html.element Js.t ;
     mutable root : Dom_html.element Js.t ;
-    components : ((page id * component id), Dom_html.element Js.t *
-                                            (string *
-                                             Json_repr_browser.value option)) Hashtbl.t ;
-    containers : ((page id * component id), Dom_html.element Js.t *
-                                            (string *
-                                             Json_repr_browser.value option)) Hashtbl.t ;
-    construct_component : (component, unit) constructor ;
-    destruct_component : component destructor ;
-    rebind_component : (component, unit) rebinder ;
-    construct_container : (container, Dom_html.element Js.t list) constructor ;
-    destruct_container : container destructor ;
-    rebind_container : (container, Dom_html.element Js.t list) rebinder ;
+    components : ((page id * component id), Dom_html.element Js.t * component) Hashtbl.t ;
+    containers : ((page id * component id), Dom_html.element Js.t * container) Hashtbl.t ;
+    construct_component : component_constructor ;
+    destruct_component : component_destructor ;
+    rebind_component : component_rebinder ;
+    construct_container : container_constructor ;
+    destruct_container : container_destructor ;
+    rebind_container : container_rebinder ;
     ui : ui ;
     mutable page_and_profile_ids : (page id * profile id) option }
 
@@ -169,26 +205,19 @@ let main_container_style =
   "position: absolute; \
    left: 0px; right: 0px; top: 0px; bottom: 0px;"
 
-let div
-    container
+let div container
     ?(construct_component =
-      fun ~page ~id ~constructor ~parameters ~profile () ->
-        Lwt.return `Default)
+      fun ~page_id ~component_id ~profile_id component -> `Default)
     ?(destruct_component =
-      fun ~page ~id ~constructor ~parameters elt ->
-        Lwt.return `Default)
+      fun ~page_id ~component_id component -> `Default)
     ?(rebind_component =
-      fun ~page ~id ~constructor ~parameters ~previous_profile ~new_profile elt () ->
-        Lwt.return `Default)
+      fun ~page_id ~component_id ~previous_profile_id ~new_profile_id component -> `Default)
     ?(construct_container =
-      fun ~page ~id ~constructor ~parameters ~profile children ->
-        Lwt.return `Default)
+      fun ~page_id ~container_id ~profile_id container -> `Default)
     ?(destruct_container =
-      fun ~page ~id ~constructor ~parameters elt ->
-        Lwt.return `Default)
+      fun ~page_id ~container_id container -> `Default)
     ?(rebind_container =
-      fun ~page ~id ~constructor ~parameters ~previous_profile ~new_profile elt children ->
-        Lwt.return `Default)
+      fun ~page_id ~container_id ~previous_profile_id ~new_profile_id container -> `Default)
     ui =
   { container ;
     root = container (* dummy *) ;
@@ -229,189 +258,248 @@ let window
     ?destruct_container
     ?rebind_container ui
 
-let render ctx page_id profile_id =
-  let rec chained_call = function
-    | [] -> Lwt.return `Default
-    | f :: fs ->
-      f () >>= function
-      | `Default -> chained_call fs
-      | res -> Lwt.return res in
-  let construct_container page profile ~id ~constructor ~parameters children =
-    (* Firebug.console##debug (Js.string (Format.asprintf "construct %s/%s" page id)) ; *)
+let rec chained_call = function
+  | [] -> `Default
+  | f :: fs ->
+    match f () with
+    | `Default -> chained_call fs
+    | handled -> handled
+
+let construct_container ctx ~page_id ~container_id ~profile_id container =
+  match
     chained_call @@
     List.map
-      (fun f () -> f ~page ~id ~constructor ~parameters ~profile children)
-      (ctx.construct_container :: !container_constructors) >>= function
-    | `Constructed elt -> Lwt.return elt
-    | `Default ->
-      Lwt.fail_with
-        ("Cannot find a suitable container constructor for " ^ constructor ^
-         " with id " ^ id ^
-         " in page " ^ page ^
-         " and profile " ^ profile) in
-  let construct_component page profile ~id ~constructor ~parameters children =
-    (* Firebug.console##debug (Js.string (Format.asprintf "construct %s/%s" page id)) ; *)
+      (fun f () -> f ~page_id ~container_id ~profile_id container)
+      (ctx.construct_container :: !container_constructors)
+  with
+  | `Default ->
+    failwith
+      ("Cannot find a suitable container constructor" ^
+       " for " ^ container.container_constructor ^
+       " with id " ^ container_id ^
+       " in page " ^ page_id ^
+       " and profile " ^ profile_id)
+  | `Immediate _ | `Running _ as handled -> handled
+
+let construct_component ctx ~component_id ~page_id ~profile_id component =
+  match
     chained_call @@
     List.map
-      (fun f () -> f ~page ~id ~constructor ~parameters ~profile children)
-      (ctx.construct_component :: !component_constructors) >>= function
-    | `Constructed elt -> Lwt.return elt
-    | `Default ->
-      Lwt.fail_with
-        ("Cannot find a suitable component constructor for " ^ constructor ^
-         " with id " ^ id ^
-         " in page " ^ page ^
-         " and profile " ^ profile) in
-  let destruct_container page ~id ~constructor ~parameters elt =
-    (* Firebug.console##debug (Js.string (Format.asprintf "destruct %s/%s" page id)) ; *)
+      (fun f () -> f ~page_id ~component_id ~profile_id component)
+      (ctx.construct_component :: !component_constructors)
+  with
+  | `Default ->
+    failwith
+      ("Cannot find a suitable component constructor" ^
+       " for " ^ component.component_constructor ^
+       " with id " ^ component_id ^
+       " in page " ^ page_id ^
+       " and profile " ^ profile_id)
+  | `Immediate _ | `Running _ as handled -> handled
+
+let destruct_container ctx ~page_id ~container_id container =
+  match
     chained_call @@
     List.map
-      (fun f () -> f ~page ~id ~constructor ~parameters elt)
-      (ctx.destruct_container :: !container_destructors) >>= function
-    | `Destructed
-    | `Default -> Lwt.return () in
-  let destruct_component page ~id ~constructor ~parameters elt =
-    (* Firebug.console##debug (Js.string (Format.asprintf "destruct %s/%s" page id)) ; *)
+      (fun f () -> f ~page_id ~container_id container)
+      (ctx.destruct_container :: !container_destructors)
+  with
+  | `Default -> `Immediate (fun _ -> ())
+  | `Immediate _ | `Running _ as handled -> handled
+
+let destruct_component ctx ~page_id ~component_id component =
+  match
     chained_call @@
     List.map
-      (fun f () -> f ~page ~id ~constructor ~parameters elt)
-      (ctx.destruct_component :: !component_destructors) >>= function
-    | `Destructed
-    | `Default -> Lwt.return () in
-  let rebind_container page ~id ~constructor ~parameters ~previous_profile ~new_profile elt children =
-    (* Firebug.console##debug (Js.string (Format.asprintf "rebind %s/%s" page id)) ; *)
+      (fun f () -> f ~page_id ~component_id component)
+      (ctx.destruct_component :: !component_destructors)
+  with
+  | `Default -> `Immediate (fun _ -> ())
+  | `Immediate _ | `Running _ as handled -> handled
+
+let rebind_container ctx ~page_id ~container_id ~previous_profile_id ~new_profile_id container =
+  match
     chained_call @@
     List.map
-      (fun f () -> f ~page ~id ~constructor ~parameters ~previous_profile ~new_profile elt children)
-      (ctx.rebind_container :: !container_rebinders) in
-  let rebind_component page ~id ~constructor ~parameters ~previous_profile ~new_profile elt () =
-    (* Firebug.console##debug (Js.string (Format.asprintf "rebind %s/%s" page id)) ; *)
+      (fun f () -> f ~page_id ~container_id ~previous_profile_id ~new_profile_id container)
+      (ctx.rebind_container :: !container_rebinders)
+  with
+  | `Default -> `Immediate (fun (elt, _) -> elt)
+  | `Reconstruct ->
+    tee
+      (`Immediate (fun (elt, _) -> elt) >>>
+       destruct_container ctx ~page_id ~container_id container)
+      (`Immediate (fun (_, children) -> children) >>>
+       construct_container ctx ~page_id ~container_id ~profile_id: new_profile_id container)
+  | `Immediate _ | `Running _ as handled -> handled
+
+let rebind_component ctx ~page_id ~component_id ~previous_profile_id ~new_profile_id component =
+  match
     chained_call @@
     List.map
-      (fun f () -> f ~page ~id ~constructor ~parameters ~previous_profile ~new_profile elt ())
-      (ctx.rebind_component :: !component_rebinders) in
-  let find_view page_id profile =
-    try
-      let page = List.assoc page_id ctx.ui.pages in
-      let { document } =
-        List.find
-          (fun { compatible_profiles = cps } -> List.mem profile cps)
-          page.views in
-      Lwt.return (resolve page_id page profile document)
-    with
-    | Not_found ->
-      Lwt.fail_with ("No view for page " ^ page_id ^
-                     " and profile " ^ profile)
-    | exn -> Lwt.fail exn in
-  let rec traverse ~do_component ~do_container = function
-    | Resolved_container (id, container, children) ->
-      Lwt_list.map_p
-        (traverse ~do_component ~do_container)
-        children >>= fun results ->
-      let { container_constructor = constructor ;
-            container_parameters = parameters }
-        = container in
-      let parameters = match parameters with
-        | Some parameters ->
-          Some
-            (Json_repr.any_to_repr
-               (module Json_repr_browser.Repr)
-               parameters)
-        | None -> None in
-      do_container ~id ~constructor ~parameters results
-    | Resolved_component (id, component) ->
-      let { component_constructor = constructor ;
-            component_parameters = parameters }
-        = component in
-      let parameters = match parameters with
-        | Some parameters ->
-          Some
-            (Json_repr.any_to_repr
-               (module Json_repr_browser.Repr)
-               parameters)
-        | None -> None in
-      do_component ~id ~constructor ~parameters () in
-  let construct ~page_id ~profile_id = traverse
+      (fun f () -> f ~page_id ~component_id ~previous_profile_id ~new_profile_id component)
+      (ctx.rebind_component :: !component_rebinders)
+  with
+  | `Default -> `Immediate (fun elt -> elt)
+  | `Reconstruct ->
+    destruct_component ctx ~page_id ~component_id component >>>
+    construct_component ctx ~page_id ~component_id ~profile_id: new_profile_id component
+  | `Immediate _ | `Running _ as handled -> handled
+
+let find_view ctx ~page_id ~profile_id =
+  try
+    let page = List.assoc page_id ctx.ui.pages in
+    let { document } =
+      List.find
+        (fun { compatible_profiles = cps } -> List.mem profile_id cps)
+        page.views in
+    Lwt.return (resolve page_id page profile_id document)
+  with
+  | Not_found ->
+    Lwt.fail_with ("No view for page " ^ page_id ^
+                   " and profile " ^ profile_id)
+  | exn -> Lwt.fail exn
+
+let rec traverse_view ~do_component ~do_container = function
+  | Resolved_container (container_id, container, children) ->
+    let results =
+      List.map
+        (traverse_view ~do_component ~do_container)
+        children in
+    let parameters =
+      match container.container_parameters with
+      | Some p -> Some (Json_repr.any_to_repr (module Json_repr_browser.Repr) p)
+      | None -> None in
+    do_container ~container_id container parameters results
+  | Resolved_component (component_id, component) ->
+    let parameters =
+      match component.component_parameters with
+      | Some p -> Some (Json_repr.any_to_repr (module Json_repr_browser.Repr) p)
+      | None -> None in
+    do_component ~component_id component parameters
+
+let render ctx
+    ~page_id: new_page_id ~profile_id: new_profile_id
+    ?transitions () =
+  let run_with_transitions f x = match f with
+    | `Immediate f -> Lwt.return (f x)
+    | `Running f ->
+      match transitions with
+      | None -> f x
+      | Some (tr_in, tr_out) ->
+        tr_in () >>= fun () ->
+        f x >>= fun r ->
+        tr_out () >>= fun () ->
+        Lwt.return r in
+  let run f x = match f with
+    | `Immediate f -> Lwt.return (f x)
+    | `Running f -> f x in
+  let children_rendering children =
+    let rec loop acc rest =
+      match acc, rest with
+      | l, [] ->
+        `Immediate (fun () -> List.map (fun f -> f ()) (List.rev l))
+      | l, `Immediate child :: rest ->
+        loop (child :: acc) rest
+      | _, `Running _ :: _ ->
+        `Running (fun () ->
+            Lwt_list.map_p
+              (function
+                | `Immediate f -> Lwt.return (f ())
+                | `Running f -> f ())
+              children)
+    in loop [] children in
+  let construct ~page_id ~profile_id =
+    traverse_view
       ~do_container:
-        (fun ~id ~constructor ~parameters children ->
-           construct_container page_id profile_id ~id ~constructor ~parameters children >>= fun elt ->
-           Hashtbl.add ctx.containers (page_id, id) (elt, (constructor, parameters)) ;
-           Lwt.return elt)
+        (fun ~container_id container parameters children ->
+           children_rendering children >>>
+           construct_container ctx
+             ~page_id ~profile_id ~container_id
+             container >>>
+           `Immediate
+             (fun elt ->
+                Hashtbl.add ctx.containers (page_id, container_id) (elt, container) ;
+                elt))
       ~do_component:
-        (fun ~id ~constructor ~parameters () ->
-           construct_component page_id profile_id ~id ~constructor ~parameters () >>= fun elt ->
-           Hashtbl.add ctx.components (page_id, id) (elt, (constructor, parameters)) ;
-           Lwt.return elt) in
-  let rebind ~previous_page_id ~page_id ~previous_profile ~new_profile = traverse
+        (fun ~component_id component parameters ->
+           construct_component ctx
+             ~page_id ~profile_id ~component_id
+             component >>>
+           `Immediate
+             (fun elt ->
+                Hashtbl.add ctx.components (page_id, component_id) (elt, component) ;
+                elt)) in
+  let rebind ~previous_page_id ~page_id ~previous_profile_id ~new_profile_id =
+    traverse_view
       ~do_container:
-        (fun ~id ~constructor ~parameters children ->
+        (fun ~container_id container parameters children ->
            try
-             let elt, (previous_constructor, previous_parameters) =
-               Hashtbl.find ctx.containers (page_id, id) in
-             rebind_container page_id ~id ~constructor ~parameters ~previous_profile ~new_profile elt children >>= function
-             | `Rebound -> Lwt.return elt
-             | `Default
-               when previous_constructor = constructor
-                 && previous_parameters == parameters -> Lwt.return elt
-             | `Default | `Reconstruct ->
-               destruct_container previous_page_id ~id
-                 ~constructor: previous_constructor
-                 ~parameters: previous_parameters elt >>= fun () ->
-               Hashtbl.remove ctx.containers (previous_page_id, id) ;
-               construct_container page_id profile_id ~id ~constructor ~parameters children >>= fun elt ->
-               Hashtbl.add ctx.containers (page_id, id) (elt, (constructor, parameters)) ;
-               Lwt.return elt
+             let elt, previous_container =
+               Hashtbl.find ctx.containers (page_id, container_id) in
+             children_rendering children >>>
+             `Immediate (fun children -> (elt, children)) >>>
+             rebind_container ctx
+               ~page_id ~container_id ~previous_profile_id ~new_profile_id
+               container >>>
+             `Immediate (fun elt ->
+                 Hashtbl.remove ctx.containers (previous_page_id, container_id) ;
+                 Hashtbl.add ctx.containers (page_id, container_id) (elt, container) ;
+                 elt)
            with Not_found ->
-             construct_container page_id profile_id~id ~constructor ~parameters children >>= fun elt ->
-             Hashtbl.add ctx.containers (page_id, id) (elt, (constructor, parameters)) ;
-             Lwt.return elt)
+             children_rendering children >>>
+             construct_container ctx
+               ~page_id ~profile_id: new_profile_id ~container_id
+               container >>>
+             `Immediate
+               (fun elt ->
+                  Hashtbl.add ctx.containers (page_id, container_id) (elt, container) ;
+                  elt))
       ~do_component:
-        (fun ~id ~constructor ~parameters () ->
+        (fun ~component_id component parameters ->
            try
-             let elt, (previous_constructor, previous_parameters) =
-               Hashtbl.find ctx.components (page_id, id) in
-             rebind_component page_id ~id ~constructor ~parameters ~previous_profile ~new_profile elt () >>= function
-             | `Rebound -> Lwt.return elt
-             | `Default
-               when previous_constructor = constructor
-                 && previous_parameters == parameters -> Lwt.return elt
-             | `Default | `Reconstruct ->
-               destruct_component previous_page_id ~id
-                 ~constructor: previous_constructor
-                 ~parameters: previous_parameters elt >>= fun () ->
-               Hashtbl.remove ctx.components (previous_page_id, id) ;
-               construct_component page_id profile_id ~id ~constructor ~parameters () >>= fun elt ->
-               Hashtbl.add ctx.components (page_id, id) (elt, (constructor, parameters)) ;
-               Lwt.return elt
+             let elt, previous_component =
+               Hashtbl.find ctx.components (page_id, component_id) in
+             `Immediate (fun () -> elt) >>>
+             rebind_component ctx
+               ~page_id ~component_id ~previous_profile_id ~new_profile_id
+               component >>>
+             `Immediate (fun elt ->
+                 Hashtbl.remove ctx.components (previous_page_id, component_id) ;
+                 Hashtbl.add ctx.components (page_id, component_id) (elt, component) ;
+                 elt)
            with Not_found ->
-             construct_component page_id profile_id ~id ~constructor ~parameters () >>= fun elt ->
-             Hashtbl.add ctx.components (page_id, id) (elt, (constructor, parameters)) ;
-             Lwt.return elt) in
+             construct_component ctx
+               ~page_id ~profile_id: new_profile_id ~component_id
+               component >>>
+             `Immediate
+               (fun elt ->
+                  Hashtbl.add ctx.components (page_id, component_id) (elt, component) ;
+                  elt)) in
   match ctx.page_and_profile_ids with
   | Some (previous_page_id, previous_profile_id)
-    when previous_page_id = page_id
-      && previous_profile_id = profile_id ->
+    when previous_page_id = new_page_id
+      && previous_profile_id = new_profile_id ->
     Lwt.return ()
   | Some (previous_page_id, previous_profile_id) ->
     let previous_containers = Hashtbl.copy ctx.containers in
     let previous_components = Hashtbl.copy ctx.components in
-    ignore (ctx.container##removeChild ((ctx.root :> Dom.node Js.t))) ;
-    find_view page_id profile_id >>= fun view ->
-    rebind
-      ~previous_page_id
-      ~page_id
-      ~previous_profile: previous_profile_id
-      ~new_profile: profile_id view >>= fun elt ->
-    ctx.page_and_profile_ids <- Some (page_id, profile_id) ;
+    find_view ctx ~page_id: new_page_id ~profile_id: new_profile_id >>= fun view ->
+    run_with_transitions
+      (`Immediate (fun () -> ignore (ctx.container##removeChild ((ctx.root :> Dom.node Js.t)))) >>>
+       rebind ~previous_page_id ~page_id: new_page_id ~previous_profile_id ~new_profile_id view >>>
+       `Immediate (fun elt -> ignore (ctx.container##appendChild ((elt :> Dom.node Js.t))) ; elt))
+      () >>= fun elt ->
+    ctx.page_and_profile_ids <- Some (new_page_id, new_profile_id) ;
     ctx.root <- elt ;
-    traverse
+    traverse_view
       ~do_container:
-        (fun ~id ~constructor ~parameters _ ->
-           Hashtbl.remove previous_containers (previous_page_id, id) ;
+        (fun ~container_id container parameters children ->
+           Hashtbl.remove previous_containers (previous_page_id, container_id) ;
            Lwt.return ())
       ~do_component:
-        (fun ~id ~constructor ~parameters () ->
-           Hashtbl.remove previous_components (previous_page_id, id) ;
+        (fun ~component_id component parameters ->
+           Hashtbl.remove previous_components (previous_page_id, component_id) ;
            Lwt.return ())
       view >>= fun () ->
     let previous_containers =
@@ -419,23 +507,24 @@ let render ctx page_id profile_id =
     let previous_components =
       Hashtbl.fold (fun k v acc -> (k, v) :: acc) previous_components [] in
     Lwt_list.iter_p
-      (fun ((page, id), (elt, (constructor, parameters))) ->
-         destruct_component page ~id ~constructor ~parameters elt >>= fun _ ->
-         Hashtbl.remove ctx.components (page, id) ;
+      (fun ((page_id, component_id), (elt, component)) ->
+         run (destruct_component ctx ~page_id ~component_id component) elt >>= fun _ ->
+         Hashtbl.remove ctx.components (page_id, component_id) ;
          Lwt.return ())
       previous_components >>= fun () ->
     Lwt_list.iter_p
-      (fun ((page, id), (elt, (constructor, parameters))) ->
-         destruct_container page ~id ~constructor ~parameters elt >>= fun _ ->
-         Hashtbl.remove ctx.containers (page, id) ;
+      (fun ((page_id, container_id), (elt, container)) ->
+         run (destruct_container ctx ~page_id ~container_id container) elt >>= fun _ ->
+         Hashtbl.remove ctx.containers (page_id, container_id) ;
          Lwt.return ())
       previous_containers >>= fun () ->
-    ignore (ctx.container##appendChild ((ctx.root :> Dom.node Js.t))) ;
     Lwt.return ()
   | None ->
-    ctx.page_and_profile_ids <- Some (page_id, profile_id) ;
-    find_view page_id profile_id >>= fun view ->
-    construct page_id profile_id view >>= fun elt ->
+    ctx.page_and_profile_ids <- Some (new_page_id, new_profile_id) ;
+    find_view ctx ~page_id: new_page_id ~profile_id: new_profile_id >>= fun view ->
+    run_with_transitions
+      (construct ~page_id: new_page_id ~profile_id: new_profile_id view)
+      () >>= fun elt ->
     ctx.root <- elt ;
     ignore (ctx.container##appendChild ((ctx.root :> Dom.node Js.t))) ;
     Lwt.return ()

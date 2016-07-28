@@ -208,7 +208,7 @@ let component_encoding =
         component_parameters ;
         component_priority }) @@
   obj4
-    (dft "aspect_ratio" (range_encoding float) any)
+    (dft "aspectRatio" (range_encoding float) any)
     (req "constructor" string)
     (opt "parameters" any_value)
     (req "priority" priority_encoding)

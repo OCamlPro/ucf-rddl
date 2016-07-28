@@ -21,61 +21,59 @@ open Rddl_ast
 
 type context
 
+type ('param, 'result) rendering =
+  [ `Immediate of 'param -> 'result
+  | `Running of 'param -> 'result Lwt.t ]
+
 type component_constructor =
-  page: page id ->
-  id: component id ->
-  constructor: string ->
-  parameters: Json_repr_browser.value option ->
-  profile: profile id ->
-  unit ->
-  [ `Constructed of Dom_html.element Js.t | `Default ] Lwt.t
+  page_id: page id ->
+  component_id: component id ->
+  profile_id: profile id ->
+  component ->
+  [ (unit, Dom_html.element Js.t) rendering
+  | `Default ]
 
 type component_destructor =
-  page: page id ->
-  id: component id ->
-  constructor: string ->
-  parameters: Json_repr_browser.value option ->
-  Dom_html.element Js.t ->
-  [ `Destructed | `Default ] Lwt.t
+  page_id: page id ->
+  component_id: component id ->
+  component ->
+  [ (Dom_html.element Js.t, unit) rendering
+  | `Default ]
 
 type component_rebinder =
-  page: page id ->
-  id: component id ->
-  constructor: string ->
-  parameters: Json_repr_browser.value option ->
-  previous_profile: profile id ->
-  new_profile: profile id ->
-  Dom_html.element Js.t ->
-  unit ->
-  [ `Rebound | `Reconstruct | `Default ] Lwt.t
+  page_id: page id ->
+  component_id: component id ->
+  previous_profile_id: profile id ->
+  new_profile_id: profile id ->
+  component ->
+  [ (Dom_html.element Js.t, Dom_html.element Js.t) rendering
+  | `Default
+  | `Reconstruct ]
 
 type container_constructor =
-  page: page id ->
-  id: container id ->
-  constructor: string ->
-  parameters: Json_repr_browser.value option ->
-  profile: profile id ->
-  Dom_html.element Js.t list ->
-  [ `Constructed of Dom_html.element Js.t | `Default ] Lwt.t
+  page_id: page id ->
+  container_id: container id ->
+  profile_id: profile id ->
+  container ->
+  [ (Dom_html.element Js.t list, Dom_html.element Js.t) rendering
+  | `Default ]
 
 type container_destructor =
-  page: page id ->
-  id: container id ->
-  constructor: string ->
-  parameters: Json_repr_browser.value option ->
-  Dom_html.element Js.t ->
-  [ `Destructed | `Default ] Lwt.t
+  page_id: page id ->
+  container_id: container id ->
+  container ->
+  [ (Dom_html.element Js.t, unit) rendering
+  | `Default ]
 
 type container_rebinder =
-  page: page id ->
-  id: container id ->
-  constructor: string ->
-  parameters: Json_repr_browser.value option ->
-  previous_profile: profile id ->
-  new_profile: profile id ->
-  Dom_html.element Js.t ->
-  Dom_html.element Js.t list ->
-  [ `Rebound | `Reconstruct | `Default ] Lwt.t
+  page_id: page id ->
+  container_id: container id ->
+  previous_profile_id: profile id ->
+  new_profile_id: profile id ->
+  container ->
+  [ (Dom_html.element Js.t * Dom_html.element Js.t list, Dom_html.element Js.t) rendering
+  | `Default
+  | `Reconstruct ]
 
 val window :
   ?main_container_id: string ->
@@ -115,4 +113,8 @@ val register_global_container_destructor :
 val register_global_container_rebinder :
   container_rebinder -> unit
 
-val render : context -> page id -> profile id -> unit Lwt.t
+val render : context ->
+  page_id: page id ->
+  profile_id: profile id ->
+  ?transitions: ((unit -> unit Lwt.t) * (unit -> unit Lwt.t)) ->
+  unit -> unit Lwt.t

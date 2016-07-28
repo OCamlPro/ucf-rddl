@@ -38,18 +38,19 @@
             "components": {
                 "video": {
                     "priority": "required",
-                    "constructor": "video-player"
+                    "constructor": "video-player",
+                    "aspectRatio": 1.5
                 },
                 "info": {
                     "priority": "optional",
-                    "constructor": "custom"
+                    "constructor": "video-information"
                 }
             }
         }
     },
     "profiles": {
         "vertical": { "displayAspectRatio": { "max": { "excluded": 1} } },
-        "horizontal": { "displayAspectRatio": { "min": 1, "max": { "excluded": 1.5} } },
-        "large": { "displayAspectRatio": { "min": 1.5 } }
+        "horizontal": { "displayAspectRatio": { "min": 1, "max": { "excluded": 2.5} } },
+        "large": { "displayAspectRatio": { "min": 2.5 } }
     }
 }

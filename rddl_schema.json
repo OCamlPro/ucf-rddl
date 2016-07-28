@@ -81,7 +81,7 @@
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "aspect_ratio": {
+              "aspectRatio": {
                 "oneOf": [
                   { "type": "number" },
                   {

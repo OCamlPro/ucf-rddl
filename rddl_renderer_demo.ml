@@ -44,6 +44,61 @@ let do_anim t ~start ~step ~stop =
   step t >>= fun () ->
   stop ()
 
+let construct_component ~page_id ~component_id ~profile_id component =
+  match component.component_constructor with
+  | "video-player" ->
+    let render () =
+      let elt =
+        let open Tyxml_js.Svg in
+        Tyxml_js.Html.svg
+          ~a: [ a_viewBox (0., 0., 1920., 1080.) ]
+          [ rect ~a: [ a_width (1920., None) ;
+                       a_height (1080., None) ;
+                       a_x (0., None);
+                       a_y (0., None) ;
+                       a_fill (`Color ("black", None)) ]
+              [] ;
+            text ~a: [ a_x_list [ (810., None) ];
+                       a_y_list [ (540., None) ] ;
+                       a_font_size "200" ;
+                       a_text_anchor `Middle ;
+                       a_fill (`Color ("red", None)) ]
+              [ pcdata "Video Player" ] ;
+          ] in
+      Tyxml_js.To_dom.of_element elt in
+    `Immediate render
+  | "video-information" ->
+    let render () =
+      let div = Tyxml_js.Html.(div [ pcdata "Video infos." ]) in
+      Tyxml_js.To_dom.of_element div in
+    `Immediate render
+  | _ -> `Default
+
+let construct_container ~page_id ~container_id ~profile_id container =
+  match container.container_constructor with
+  | "vertical-box" | "horizontal-box" ->
+    let render children =
+      let div = Dom_html.createDiv Dom_html.document in
+      div##style##display <- Js.string "flex" ;
+      begin match container.container_constructor with
+        | "vertical-box" ->
+          Js.Unsafe.set (div##style) (Js.string "flexDirection") (Js.string "column") ;
+          div##style##width <- Js.string "100%"
+        |  "horizontal-box" ->
+          Js.Unsafe.set (div##style) (Js.string "flexDirection") (Js.string "row") ;
+          div##style##height <- Js.string "100%"
+        | _ -> assert false
+      end ;
+      List.iter
+        (fun child ->
+           Js.Unsafe.set (child##style) (Js.string "flex") (Js.string "1 1 auto") ;
+           let child = (child :> Dom.node Js.t) in
+           ignore (div##appendChild (child)))
+        children ;
+      div in
+    `Immediate render
+  | _ -> `Default
+
 let () =
   Random.self_init () ;
   Lwt.async @@ fun () ->
@@ -89,75 +144,49 @@ let () =
          let updates = Rddl_profiler.div container in
          let changes = Rddl_profiler.changes updates profiles in
          let renderer_ctx =
-           let genstyle () =
-             let r = Random.int 60 + 120 in
-             let g = Random.int 60 + 120 in
-             let b = Random.int 60 + 120 in
-             Format.asprintf
-               "display: block; \
-                background-color: #%02X%02X%02X;" r g b in
-           let construct_component ~page ~id ~constructor ~parameters ~profile () =
-             let div = Dom_html.createDiv Dom_html.document in
-             div##setAttribute (Js.string "style", Js.string (genstyle ())) ;
-             div##innerHTML <- Js.string
-                 (Format.asprintf "%s/%s/%s/%s" page id constructor profile) ;
-             Lwt.return (`Constructed div) in
-           let construct_container ~page ~id ~constructor ~parameters ~profile children =
-             let div = Dom_html.createDiv Dom_html.document in
-             div##setAttribute (Js.string "style", Js.string (genstyle ())) ;
-             div##innerHTML <- Js.string
-                 (Format.asprintf "%s/%s/%s/%s" page id constructor profile) ;
-             List.iter
-               (fun child ->
-                  let child = (child :> Dom.node Js.t) in
-                  ignore (div##appendChild (child)))
-               children ;
-             Lwt.return (`Constructed div) in
            Rddl_renderer.div container ~construct_component ~construct_container ui in
          let transition_div =
            let transition_div_style =
-             "background-color: white; \
-              position: fixed; \
+             "background-color: black; \
+              position: absolute; display: none; z-index: 1000;\
               left: 0; right: 0; bottom: 0; top:0;" in
            let div = Dom_html.createDiv Dom_html.document in
            div##setAttribute (Js.string "style", Js.string transition_div_style) ;
            ignore (container##appendChild ((div :> Dom.node Js.t))) ;
            div in
+         let tt = 0.2 in
          let rec start_transition () =
-           do_anim 0.1
+           do_anim tt
              ~start:(fun () ->
                  transition_div##style##display <- Js.string "block" ;
                  Lwt.return ())
              ~step:(fun t ->
-                 let d = Printf.sprintf "%0.2f" (1. -. (t /. 0.1)) in
+                 let d = Printf.sprintf "%0.2f" (t /. tt) in
                  transition_div##style##opacity <- Js.Optdef.return (Js.string d) ;
                  Lwt.return ())
-             ~stop:(fun () ->
-                 transition_div##style##display <- Js.string "none" ;
-                 Lwt.return ()) in
+             ~stop: Lwt.return in
          let rec end_transition () =
-           do_anim 0.1
-             ~start:(fun () ->
-                 transition_div##style##display <- Js.string "block" ;
-                 Lwt.return ())
+           do_anim tt
+             ~start: Lwt.return
              ~step:(fun t ->
-                 let d = Printf.sprintf "%0.2f" (t /. 0.1) in
+                 let d = Printf.sprintf "%0.2f" (1. -. (t /. tt)) in
                  transition_div##style##opacity <- Js.Optdef.return (Js.string d) ;
                  Lwt.return ())
              ~stop:(fun () ->
                  transition_div##style##display <- Js.string "none" ;
                  Lwt.return ()) in
-         Lwt.join
+         Lwt.pick
            [ (Rddl_profiler.on_update updates @@ fun profile ->
               set_state_text (pretty_print_profile profile) ;
               Lwt.return ()) ;
              (Rddl_profiler.on_change changes @@ fun _ ->
-              end_transition () >>= fun () ->
               let (id, profile) = Rddl_profiler.selection changes in
               set_profile_id id ;
-              Firebug.console##debug (Js.string ("Profile: `" ^ id ^ "`."));
-              Rddl_renderer.render renderer_ctx (fst (List.hd pages)) id >>= fun () ->
-              start_transition ()) ])
+              Rddl_renderer.render renderer_ctx
+                ~transitions: (start_transition, end_transition)
+                ~page_id: (fst (List.hd pages))
+                ~profile_id: id
+                ()) ])
     (function exn ->
        let message =
          Format.asprintf "@[<v 0>%a@." (fun ppf -> Json_encoding.print_error ppf) exn in
