@@ -50,19 +50,23 @@ type component_rebinder =
   | `Default
   | `Reconstruct ]
 
+type rendered =
+  { element : Dom_html.element Js.t ;
+    kind : [ `Container of container | `Component of component ] }
+
 type container_constructor =
   page_id: page id ->
   container_id: container id ->
   profile_id: profile id ->
   container ->
-  [ (Dom_html.element Js.t list, Dom_html.element Js.t) rendering
+  [ (rendered list, Dom_html.element Js.t) rendering
   | `Default ]
 
 type container_destructor =
   page_id: page id ->
   container_id: container id ->
   container ->
-  [ (Dom_html.element Js.t, unit) rendering
+  [ (Dom_html.element Js.t * rendered list, unit) rendering
   | `Default ]
 
 type container_rebinder =
@@ -71,7 +75,7 @@ type container_rebinder =
   previous_profile_id: profile id ->
   new_profile_id: profile id ->
   container ->
-  [ (Dom_html.element Js.t * Dom_html.element Js.t list, Dom_html.element Js.t) rendering
+  [ (Dom_html.element Js.t * rendered list, Dom_html.element Js.t) rendering
   | `Default
   | `Reconstruct ]
 

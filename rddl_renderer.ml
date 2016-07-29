@@ -84,13 +84,13 @@ let (>>>) x f =
 let tee fl fr =
   match fl, fr with
   | `Running fl, `Running fr ->
-    `Running (fun x -> fl x >>= fun () -> fr x)
+    `Running (fun x -> fl x >>= fun v -> fr (x, v))
   | `Immediate fl, `Running fr ->
-    `Running (fun x -> fl x ; fr x)
+    `Running (fun x -> fr (x, fl x))
   | `Running fl, `Immediate fr ->
-    `Running (fun x -> fl x >>= fun () -> Lwt.return (fr x))
+    `Running (fun x -> fl x >>= fun v -> Lwt.return (fr (x, v)))
   | `Immediate fl, `Immediate fr ->
-    `Immediate (fun x -> let () = fl x in fr x)
+    `Immediate (fun x -> let v = fl x in fr (x, v))
 
 type component_constructor =
   page_id: page id ->
@@ -117,19 +117,23 @@ type component_rebinder =
   | `Default
   | `Reconstruct ]
 
+type rendered =
+  { element : Dom_html.element Js.t ;
+    kind : [ `Container of container | `Component of component ] }
+
 type container_constructor =
   page_id: page id ->
   container_id: container id ->
   profile_id: profile id ->
   container ->
-  [ (Dom_html.element Js.t list, Dom_html.element Js.t) rendering
+  [ (rendered list, Dom_html.element Js.t) rendering
   | `Default ]
 
 type container_destructor =
   page_id: page id ->
   container_id: container id ->
   container ->
-  [ (Dom_html.element Js.t, unit) rendering
+  [ (Dom_html.element Js.t * rendered list, unit) rendering
   | `Default ]
 
 type container_rebinder =
@@ -138,7 +142,7 @@ type container_rebinder =
   previous_profile_id: profile id ->
   new_profile_id: profile id ->
   container ->
-  [ (Dom_html.element Js.t * Dom_html.element Js.t list, Dom_html.element Js.t) rendering
+  [ (Dom_html.element Js.t * rendered list, Dom_html.element Js.t) rendering
   | `Default
   | `Reconstruct ]
 
@@ -146,7 +150,7 @@ type context =
   { container : Dom_html.element Js.t ;
     mutable root : Dom_html.element Js.t ;
     components : ((page id * component id), Dom_html.element Js.t * component) Hashtbl.t ;
-    containers : ((page id * component id), Dom_html.element Js.t * container) Hashtbl.t ;
+    containers : ((page id * component id), Dom_html.element Js.t * rendered list * container) Hashtbl.t ;
     construct_component : component_constructor ;
     destruct_component : component_destructor ;
     rebind_component : component_rebinder ;
@@ -327,9 +331,8 @@ let rebind_container ctx ~page_id ~container_id ~previous_profile_id ~new_profil
   | `Default -> `Immediate (fun (elt, _) -> elt)
   | `Reconstruct ->
     tee
-      (`Immediate (fun (elt, _) -> elt) >>>
-       destruct_container ctx ~page_id ~container_id container)
-      (`Immediate (fun (_, children) -> children) >>>
+      (destruct_container ctx ~page_id ~container_id container)
+      (`Immediate (fun ((_, children), ()) -> children) >>>
        construct_container ctx ~page_id ~container_id ~profile_id: new_profile_id container)
   | `Immediate _ | `Running _ as handled -> handled
 
@@ -414,13 +417,14 @@ let render ctx
       ~do_container:
         (fun ~container_id container parameters children ->
            children_rendering children >>>
-           construct_container ctx
-             ~page_id ~profile_id ~container_id
-             container >>>
-           `Immediate
-             (fun elt ->
-                Hashtbl.add ctx.containers (page_id, container_id) (elt, container) ;
-                elt))
+           tee
+             (construct_container ctx
+                ~page_id ~profile_id ~container_id
+                container)
+             (`Immediate
+                (fun (children, elt) ->
+                   Hashtbl.add ctx.containers (page_id, container_id) (elt, children, container) ;
+                   { element = elt ; kind = `Container container })))
       ~do_component:
         (fun ~component_id component parameters ->
            construct_component ctx
@@ -429,32 +433,34 @@ let render ctx
            `Immediate
              (fun elt ->
                 Hashtbl.add ctx.components (page_id, component_id) (elt, component) ;
-                elt)) in
+                { element = elt ; kind = `Component component })) in
   let rebind ~previous_page_id ~page_id ~previous_profile_id ~new_profile_id =
     traverse_view
       ~do_container:
         (fun ~container_id container parameters children ->
            try
-             let elt, previous_container =
+             let elt, _, _ =
                Hashtbl.find ctx.containers (page_id, container_id) in
              children_rendering children >>>
-             `Immediate (fun children -> (elt, children)) >>>
-             rebind_container ctx
-               ~page_id ~container_id ~previous_profile_id ~new_profile_id
-               container >>>
-             `Immediate (fun elt ->
-                 Hashtbl.remove ctx.containers (previous_page_id, container_id) ;
-                 Hashtbl.add ctx.containers (page_id, container_id) (elt, container) ;
-                 elt)
+             tee
+               (`Immediate (fun children -> (elt, children)) >>>
+                rebind_container ctx
+                  ~page_id ~container_id ~previous_profile_id ~new_profile_id
+                  container)
+               (`Immediate (fun (children, elt) ->
+                    Hashtbl.remove ctx.containers (previous_page_id, container_id) ;
+                    Hashtbl.add ctx.containers (page_id, container_id) (elt, children, container) ;
+                    { element = elt ; kind = `Container container }))
            with Not_found ->
              children_rendering children >>>
-             construct_container ctx
-               ~page_id ~profile_id: new_profile_id ~container_id
-               container >>>
-             `Immediate
-               (fun elt ->
-                  Hashtbl.add ctx.containers (page_id, container_id) (elt, container) ;
-                  elt))
+             tee
+               (construct_container ctx
+                  ~page_id ~profile_id: new_profile_id ~container_id
+                  container)
+               (`Immediate
+                  (fun (children, elt) ->
+                     Hashtbl.add ctx.containers (page_id, container_id) (elt, children, container) ;
+                     { element = elt ; kind = `Container container })))
       ~do_component:
         (fun ~component_id component parameters ->
            try
@@ -467,7 +473,7 @@ let render ctx
              `Immediate (fun elt ->
                  Hashtbl.remove ctx.components (previous_page_id, component_id) ;
                  Hashtbl.add ctx.components (page_id, component_id) (elt, component) ;
-                 elt)
+                 { element = elt ; kind = `Component component })
            with Not_found ->
              construct_component ctx
                ~page_id ~profile_id: new_profile_id ~component_id
@@ -475,7 +481,7 @@ let render ctx
              `Immediate
                (fun elt ->
                   Hashtbl.add ctx.components (page_id, component_id) (elt, component) ;
-                  elt)) in
+                  { element = elt ; kind = `Component component })) in
   match ctx.page_and_profile_ids with
   | Some (previous_page_id, previous_profile_id)
     when previous_page_id = new_page_id
@@ -488,7 +494,7 @@ let render ctx
     run_with_transitions
       (`Immediate (fun () -> ignore (ctx.container##removeChild ((ctx.root :> Dom.node Js.t)))) >>>
        rebind ~previous_page_id ~page_id: new_page_id ~previous_profile_id ~new_profile_id view >>>
-       `Immediate (fun elt -> ignore (ctx.container##appendChild ((elt :> Dom.node Js.t))) ; elt))
+       `Immediate (fun { element = elt } -> ignore (ctx.container##appendChild ((elt :> Dom.node Js.t))) ; elt))
       () >>= fun elt ->
     ctx.page_and_profile_ids <- Some (new_page_id, new_profile_id) ;
     ctx.root <- elt ;
@@ -513,8 +519,8 @@ let render ctx
          Lwt.return ())
       previous_components >>= fun () ->
     Lwt_list.iter_p
-      (fun ((page_id, container_id), (elt, container)) ->
-         run (destruct_container ctx ~page_id ~container_id container) elt >>= fun _ ->
+      (fun ((page_id, container_id), (elt, children, container)) ->
+         run (destruct_container ctx ~page_id ~container_id container) (elt, children) >>= fun _ ->
          Hashtbl.remove ctx.containers (page_id, container_id) ;
          Lwt.return ())
       previous_containers >>= fun () ->
@@ -524,7 +530,7 @@ let render ctx
     find_view ctx ~page_id: new_page_id ~profile_id: new_profile_id >>= fun view ->
     run_with_transitions
       (construct ~page_id: new_page_id ~profile_id: new_profile_id view)
-      () >>= fun elt ->
+      () >>= fun { element = elt } ->
     ctx.root <- elt ;
     ignore (ctx.container##appendChild ((ctx.root :> Dom.node Js.t))) ;
     Lwt.return ()

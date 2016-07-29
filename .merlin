@@ -3,3 +3,4 @@ PKG lwt
 PKG js_of_ocaml.tyxml
 PKG ocplib-json-typed.browser
 EXT js
+EXT syntax
