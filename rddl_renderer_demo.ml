@@ -81,19 +81,19 @@ let construct_container ~page_id ~container_id ~profile_id container =
   | "vertical-box" | "horizontal-box" ->
     let construct children =
       let div = Dom_html.createDiv Dom_html.document in
-      div##style##display <- Js.string "flex" ;
+      div##.style##.display := Js.string "flex" ;
       begin match container.container_constructor with
         | "vertical-box" ->
-          Js.Unsafe.set (div##style) (Js.string "flexDirection") (Js.string "column") ;
-          div##style##width <- Js.string "100%"
+          Js.Unsafe.set (div##.style) (Js.string "flexDirection") (Js.string "column") ;
+          div##.style##.width := Js.string "100%"
         |  "horizontal-box" ->
-          Js.Unsafe.set (div##style) (Js.string "flexDirection") (Js.string "row") ;
-          div##style##height <- Js.string "100%"
+          Js.Unsafe.set (div##.style) (Js.string "flexDirection") (Js.string "row") ;
+          div##.style##.height := Js.string "100%"
         | _ -> assert false
       end ;
       List.iter
         (fun { Rddl_renderer.element = child } ->
-           Js.Unsafe.set (child##style) (Js.string "flex") (Js.string "1 1 auto") ;
+           Js.Unsafe.set (child##.style) (Js.string "flex") (Js.string "1 1 auto") ;
            let child = (child :> Dom.node Js.t) in
            ignore (div##appendChild (child)))
         children ;
@@ -107,16 +107,16 @@ let destruct_container ~page_id ~container_id container =
     let destruct (elt, children) =
       List.iter
         (fun { Rddl_renderer.element = child } ->
-           Js.Unsafe.set (child##style) (Js.string "flex") (Js.string "") ;
-           Js.Unsafe.set (child##style) (Js.string "width") (Js.string ""))
+           Js.Unsafe.set (child##.style) (Js.string "flex") (Js.string "") ;
+           Js.Unsafe.set (child##.style) (Js.string "width") (Js.string ""))
         children in
     `Immediate destruct
   | "horizontal-box" ->
     let destruct (elt, children) =
       List.iter
         (fun { Rddl_renderer.element = child } ->
-           Js.Unsafe.set (child##style) (Js.string "flex") (Js.string "") ;
-           Js.Unsafe.set (child##style) (Js.string "height") (Js.string ""))
+           Js.Unsafe.set (child##.style) (Js.string "flex") (Js.string "") ;
+           Js.Unsafe.set (child##.style) (Js.string "height") (Js.string ""))
         children in
     `Immediate destruct
   | _ -> `Default
@@ -160,7 +160,7 @@ let () =
          Tyxml_js.Register.id "rddl-demo-panel" panel_contents ;
          let container =
            Js.Opt.case
-             (Dom_html.window##document##getElementById (Js.string "rddl-demo-container"))
+             (Dom_html.window##.document##getElementById (Js.string "rddl-demo-container"))
              (fun () -> assert false)
              (fun div -> div) in
          let updates = Rddl_profiler.div container in
@@ -176,18 +176,18 @@ let () =
               position: absolute; display: none; z-index: 1000;\
               left: 0; right: 0; bottom: 0; top:0;" in
            let div = Dom_html.createDiv Dom_html.document in
-           div##setAttribute (Js.string "style", Js.string transition_div_style) ;
+           div##setAttribute (Js.string "style") (Js.string transition_div_style) ;
            ignore (container##appendChild ((div :> Dom.node Js.t))) ;
            div in
          let tt = 0.2 in
          let rec start_transition () =
            do_anim tt
              ~start:(fun () ->
-                 transition_div##style##display <- Js.string "block" ;
+                 transition_div##.style##.display := Js.string "block" ;
                  Lwt.return ())
              ~step:(fun t ->
                  let d = Printf.sprintf "%0.2f" (t /. tt) in
-                 transition_div##style##opacity <- Js.Optdef.return (Js.string d) ;
+                 transition_div##.style##.opacity := Js.Optdef.return (Js.string d) ;
                  Lwt.return ())
              ~stop: Lwt.return in
          let rec end_transition () =
@@ -195,10 +195,10 @@ let () =
              ~start: Lwt.return
              ~step:(fun t ->
                  let d = Printf.sprintf "%0.2f" (1. -. (t /. tt)) in
-                 transition_div##style##opacity <- Js.Optdef.return (Js.string d) ;
+                 transition_div##.style##.opacity := Js.Optdef.return (Js.string d) ;
                  Lwt.return ())
              ~stop:(fun () ->
-                 transition_div##style##display <- Js.string "none" ;
+                 transition_div##.style##.display := Js.string "none" ;
                  Lwt.return ()) in
          Lwt.pick
            [ (Rddl_profiler.on_update updates @@ fun profile ->

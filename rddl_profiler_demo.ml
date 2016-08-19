@@ -150,9 +150,9 @@ let () =
                 acc ^"\n  " ^ pid)
            (pretty_print_profile profile ^ "\n") profiles in
        Js.Opt.iter
-         (Dom_html.window##document##querySelector (Js.string "#output"))
+         (Dom_html.window##.document##querySelector (Js.string "#output"))
          (fun elt ->
-            let text = Dom_html.window##document##createTextNode (Js.string text) in
-            elt##innerHTML <- Js.string message ;
+            let text = Dom_html.window##.document##createTextNode (Js.string text) in
+            elt##.innerHTML := Js.string message ;
             ignore (elt##appendChild ((text :> Dom.node Js.t)))) ;
        Lwt.return ())

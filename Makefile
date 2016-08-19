@@ -29,8 +29,7 @@ WITH_JS_SYNTAX = \
 
 OPTIONS = $(patsubst %, -package %, $(PACKAGES))
 $(WITH_JS_PACKAGE): PACKAGES+=js_of_ocaml js_of_ocaml.tyxml ocplib-json-typed.browser
-$(WITH_JS_SYNTAX): PACKAGES+=js_of_ocaml.syntax
-$(WITH_JS_SYNTAX): OPTIONS+=-syntax camlp4o
+$(WITH_JS_SYNTAX): PACKAGES+=js_of_ocaml.ppx
 
 all: \
 	rddl-checker \

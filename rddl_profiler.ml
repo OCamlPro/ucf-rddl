@@ -39,15 +39,15 @@ let div div =
   let div_state () =
     let device_pixel_ratio =
       Js.Optdef.case
-        (window##devicePixelRatio)
+        (window##.devicePixelRatio)
         (fun () -> 1.0)
         (fun ratio -> ratio) in
     let unapply_device_pixel_ratio length =
       int_of_float (float length *. device_pixel_ratio) in
     let device_width =
-      div##clientWidth in
+      div##.clientWidth in
     let device_height =
-      div##clientHeight in
+      div##.clientHeight in
     let device_aspect_ratio =
       float device_width /. float device_height in
     let display_width =
@@ -77,27 +77,27 @@ let div div =
     let outer = Dom_html.createDiv Dom_html.document in
     ignore (div##appendChild ((outer :> Dom.node Js.t))) ;
     ignore (outer##appendChild ((inner :> Dom.node Js.t))) ;
-    outer##style##position <- Js.string "absolute" ;
-    outer##style##left <- Js.string "0px" ;
-    outer##style##top <- Js.string "0px" ;
-    outer##style##width <- Js.string "100%" ;
-    outer##style##height <- Js.string "100%" ;
-    outer##style##overflow <- Js.string "hidden" ;
-    outer##style##pointerEvents<- Js.string "none" ;
+    outer##.style##.position := Js.string "absolute" ;
+    outer##.style##.left := Js.string "0px" ;
+    outer##.style##.top := Js.string "0px" ;
+    outer##.style##.width := Js.string "100%" ;
+    outer##.style##.height := Js.string "100%" ;
+    outer##.style##.overflow := Js.string "hidden" ;
+    outer##.style##.pointerEvents:= Js.string "none" ;
     inner, outer in
   let mammoth_inner, mammoth_outer = make_size_witness () in
   let elephant_inner, elephant_outer = make_size_witness () in
   let update_sizers () =
-    let w = div##clientWidth in
-    let h = div##clientHeight in
-    elephant_inner##style##width <- Js.string (string_of_int (w + 1) ^ "px") ;
-    elephant_inner##style##height <- Js.string (string_of_int (h + 1) ^ "px") ;
-    mammoth_inner##style##width <- Js.string "200%" ;
-    mammoth_inner##style##height <- Js.string "200%" ;
-    elephant_outer##scrollLeft <- 1 ;
-    elephant_outer##scrollTop <- 1 ;
-    mammoth_outer##scrollLeft <- w ;
-    mammoth_outer##scrollTop <- h in
+    let w = div##.clientWidth in
+    let h = div##.clientHeight in
+    elephant_inner##.style##.width := Js.string (string_of_int (w + 1) ^ "px") ;
+    elephant_inner##.style##.height := Js.string (string_of_int (h + 1) ^ "px") ;
+    mammoth_inner##.style##.width := Js.string "200%" ;
+    mammoth_inner##.style##.height := Js.string "200%" ;
+    elephant_outer##.scrollLeft := 1 ;
+    elephant_outer##.scrollTop := 1 ;
+    mammoth_outer##.scrollLeft := w ;
+    mammoth_outer##.scrollTop := h in
   let update () =
     update_sizers () ;
     state := div_state () ;
@@ -122,31 +122,31 @@ let window =
   let window_state () =
     let device_pixel_ratio =
       Js.Optdef.case
-        (window##devicePixelRatio)
+        (window##.devicePixelRatio)
         (fun () -> 1.0)
         (fun ratio -> ratio) in
     let unapply_device_pixel_ratio length =
       int_of_float (float length *. device_pixel_ratio) in
     let device_width =
-      window##screen##width in
+      window##.screen##.width in
     let device_height =
-      window##screen##height in
+      window##.screen##.height in
     let device_aspect_ratio =
       float device_width /. float device_height in
     let display_width =
       min
         (Js.Optdef.case
-           (window##innerWidth)
+           (window##.innerWidth)
            (fun () -> max_int)
            (fun width -> width))
-        window##document##documentElement##clientWidth in
+        window##.document##.documentElement##.clientWidth in
     let display_height =
       min
         (Js.Optdef.case
-           (window##innerHeight)
+           (window##.innerHeight)
            (fun () -> max_int)
            (fun height -> height))
-        window##document##documentElement##clientHeight in
+        window##.document##.documentElement##.clientHeight in
     let display_aspect_ratio =
       float display_width /. float display_height in
     { output = any ;

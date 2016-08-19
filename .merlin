@@ -1,6 +1,5 @@
 PKG yojson
 PKG lwt
 PKG js_of_ocaml.tyxml
+PKG js_of_ocaml.ppx
 PKG ocplib-json-typed.browser
-EXT js
-EXT syntax

@@ -245,12 +245,12 @@ let window
     ?rebind_container ui =
   let container =
     Js.Opt.case
-      (Dom_html.window##document##getElementById (Js.string id))
+      (Dom_html.window##.document##getElementById (Js.string id))
       (fun () ->
-         let div = Dom_html.createDiv (Dom_html.window##document) in
-         div##setAttribute (Js.string "id", Js.string id) ;
-         div##setAttribute (Js.string "style", Js.string main_container_style) ;
-         ignore (Dom_html.window##document##body##appendChild ((div :> Dom.node Js.t))) ;
+         let div = Dom_html.createDiv (Dom_html.window##.document) in
+         div##setAttribute (Js.string "id") (Js.string id) ;
+         div##setAttribute (Js.string "style") (Js.string main_container_style) ;
+         ignore (Dom_html.window##.document##.body##appendChild ((div :> Dom.node Js.t))) ;
          div)
       (fun div -> div) in
   div
