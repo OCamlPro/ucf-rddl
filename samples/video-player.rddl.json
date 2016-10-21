@@ -4,8 +4,12 @@
             "views": [
                 {   "profiles": [ "horizontal" ],
                     "document": {
-                        "type": "component",
-                        "id": "video"
+                        "type": "container",
+                        "constructor": "letter-box",
+                        "children": [ {
+                            "type": "component",
+                            "id": "video"
+                        } ]
                     }
                 },
                 {   "profiles": [ "vertical" ],
@@ -39,7 +43,7 @@
                 "video": {
                     "priority": "required",
                     "constructor": "video-player",
-                    "aspectRatio": 1.5
+                    "aspectRatio": 1.77
                 },
                 "info": {
                     "priority": "optional",
@@ -49,8 +53,8 @@
         }
     },
     "profiles": {
-        "vertical": { "displayAspectRatio": { "max": { "excluded": 1} } },
-        "horizontal": { "displayAspectRatio": { "min": 1, "max": { "excluded": 2.5} } },
+        "vertical": { "displayAspectRatio": { "max": { "excluded": 1.2} } },
+        "horizontal": { "displayAspectRatio": { "min": 1.2, "max": { "excluded": 2.5} } },
         "large": { "displayAspectRatio": { "min": 2.5 } }
     }
 }

@@ -50,23 +50,21 @@ let construct_component ~page_id ~component_id ~profile_id component =
     let construct () =
       let elt =
         let open Tyxml_js.Svg in
-        Tyxml_js.Html.(div ~a: [ a_style "position: relative;" ])
-          [ Tyxml_js.Html.svg
-              ~a: [ a_viewBox (0., 0., 1920., 1080.) ;
-                    a_style "max-width: 100%; max-height: 100%;" ]
-              [ rect ~a: [ a_width (1920., None) ;
-                           a_height (1080., None) ;
-                           a_x (0., None);
-                           a_y (0., None) ;
-                           a_fill (`Color ("black", None)) ]
-                  [] ;
-                text ~a: [ a_x_list [ (810., None) ];
-                           a_y_list [ (540., None) ] ;
-                           a_font_size "200" ;
-                           a_text_anchor `Middle ;
-                           a_fill (`Color ("red", None)) ]
-                  [ pcdata "Video Player" ] ;
-              ] ] in
+        Tyxml_js.Html.svg
+          ~a: [ a_viewBox (0., 0., 1920., 1080.) ]
+          [ rect ~a: [ a_width (1920., None) ;
+                       a_height (1080., None) ;
+                       a_x (0., None);
+                       a_y (0., None) ;
+                       a_fill (`Color ("black", None)) ]
+              [] ;
+            text ~a: [ a_x_list [ (810., None) ];
+                       a_y_list [ (540., None) ] ;
+                       a_font_size "200" ;
+                       a_text_anchor `Middle ;
+                       a_fill (`Color ("red", None)) ]
+              [ pcdata "Video Player" ] ;
+          ] in
       Tyxml_js.To_dom.of_element elt in
     `Immediate construct
   | "video-information" ->
@@ -74,51 +72,6 @@ let construct_component ~page_id ~component_id ~profile_id component =
       let div = Tyxml_js.Html.(div [ pcdata "Video infos." ]) in
       Tyxml_js.To_dom.of_element div in
     `Immediate construct
-  | _ -> `Default
-
-let construct_container ~page_id ~container_id ~profile_id container =
-  match container.container_constructor with
-  | "vertical-box" | "horizontal-box" ->
-    let construct children =
-      let div = Dom_html.createDiv Dom_html.document in
-      div##.style##.display := Js.string "flex" ;
-      begin match container.container_constructor with
-        | "vertical-box" ->
-          Js.Unsafe.set (div##.style) (Js.string "flexDirection") (Js.string "column") ;
-          div##.style##.width := Js.string "100%"
-        |  "horizontal-box" ->
-          Js.Unsafe.set (div##.style) (Js.string "flexDirection") (Js.string "row") ;
-          div##.style##.height := Js.string "100%"
-        | _ -> assert false
-      end ;
-      List.iter
-        (fun { Rddl_renderer.element = child } ->
-           Js.Unsafe.set (child##.style) (Js.string "flex") (Js.string "1 1 auto") ;
-           let child = (child :> Dom.node Js.t) in
-           ignore (div##appendChild (child)))
-        children ;
-      div in
-    `Immediate construct
-  | _ -> `Default
-
-let destruct_container ~page_id ~container_id container =
-  match container.container_constructor with
-  | "vertical-box" ->
-    let destruct (elt, children) =
-      List.iter
-        (fun { Rddl_renderer.element = child } ->
-           Js.Unsafe.set (child##.style) (Js.string "flex") (Js.string "") ;
-           Js.Unsafe.set (child##.style) (Js.string "width") (Js.string ""))
-        children in
-    `Immediate destruct
-  | "horizontal-box" ->
-    let destruct (elt, children) =
-      List.iter
-        (fun { Rddl_renderer.element = child } ->
-           Js.Unsafe.set (child##.style) (Js.string "flex") (Js.string "") ;
-           Js.Unsafe.set (child##.style) (Js.string "height") (Js.string ""))
-        children in
-    `Immediate destruct
   | _ -> `Default
 
 let () =
@@ -165,11 +118,7 @@ let () =
              (fun div -> div) in
          let updates = Rddl_profiler.div container in
          let changes = Rddl_profiler.changes updates profiles in
-         let renderer_ctx =
-           Rddl_renderer.div container
-             ~construct_component
-             ~construct_container
-             ~destruct_container ui in
+         let renderer_ctx = Rddl_renderer.div container ~construct_component ui in
          let transition_div =
            let transition_div_style =
              "background-color: black; \
