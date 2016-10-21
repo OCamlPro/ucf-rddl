@@ -4,6 +4,7 @@ MLS = \
   rddl_checker.ml \
   rddl_yojson.ml \
   rddl_renderer.ml \
+  rddl_renderer_builtins.ml \
   rddl_renderer_demo.ml \
   rddl_profiler.ml \
   rddl_profiler_demo.ml \
@@ -25,6 +26,7 @@ WITH_JS_SYNTAX = \
   rddl_renderer.cmo \
   rddl_profiler_demo.cmo \
   rddl_renderer_demo.cmo \
+  rddl_renderer_builtins.cmo \
   .depend
 
 OPTIONS = $(patsubst %, -package %, $(PACKAGES))
@@ -76,8 +78,9 @@ rddl.cma: \
 rddl_client.cma: \
   rddl.cma \
   rddl_profiler.cmo \
-  rddl_renderer.cmo
-	ocamlfind ocamlc $(OPTIONS) $^ -a -o $@
+  rddl_renderer.cmo \
+  rddl_renderer_builtins.cmo
+	ocamlfind ocamlc $(OPTIONS) -linkall $^ -a -o $@
 
 %.cmo: %.ml
 	ocamlfind ocamlc -g $(OPTIONS) -c $<

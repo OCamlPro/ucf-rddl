@@ -24,10 +24,11 @@ type resolved_element =
   | Resolved_container of container id * container * resolved_element list
   | Resolved_component of component id * component
 
+let genid =
+  let cur = ref 0 in
+  fun () -> incr cur ; "anon" ^ string_of_int !cur
+
 let resolve page { containers ; components } profile root =
-  let genid =
-    let cur = ref 0 in
-    fun () -> incr cur ; "anon" ^ string_of_int !cur in
   let rec resolve = function
     | Container (id, children) ->
       let container = try
@@ -79,7 +80,6 @@ let (>>>) x f =
         f x)
   | `Running f, `Immediate x ->
     `Running (fun a -> f (x a))
-
 
 let tee fl fr =
   match fl, fr with
@@ -491,13 +491,6 @@ let render ctx
     let previous_containers = Hashtbl.copy ctx.containers in
     let previous_components = Hashtbl.copy ctx.components in
     find_view ctx ~page_id: new_page_id ~profile_id: new_profile_id >>= fun view ->
-    run_with_transitions
-      (`Immediate (fun () -> ignore (ctx.container##removeChild ((ctx.root :> Dom.node Js.t)))) >>>
-       rebind ~previous_page_id ~page_id: new_page_id ~previous_profile_id ~new_profile_id view >>>
-       `Immediate (fun { element = elt } -> ignore (ctx.container##appendChild ((elt :> Dom.node Js.t))) ; elt))
-      () >>= fun elt ->
-    ctx.page_and_profile_ids <- Some (new_page_id, new_profile_id) ;
-    ctx.root <- elt ;
     traverse_view
       ~do_container:
         (fun ~container_id container parameters children ->
@@ -524,6 +517,13 @@ let render ctx
          Hashtbl.remove ctx.containers (page_id, container_id) ;
          Lwt.return ())
       previous_containers >>= fun () ->
+    run_with_transitions
+      (`Immediate (fun () -> ignore (ctx.container##removeChild ((ctx.root :> Dom.node Js.t)))) >>>
+       rebind ~previous_page_id ~page_id: new_page_id ~previous_profile_id ~new_profile_id view >>>
+       `Immediate (fun { element = elt } -> ignore (ctx.container##appendChild ((elt :> Dom.node Js.t))) ; elt))
+      () >>= fun elt ->
+    ctx.page_and_profile_ids <- Some (new_page_id, new_profile_id) ;
+    ctx.root <- elt ;
     Lwt.return ()
   | None ->
     ctx.page_and_profile_ids <- Some (new_page_id, new_profile_id) ;

@@ -108,13 +108,10 @@ let div div =
       update_sizers () ;
       Lwt_js.yield () >>= fun () ->
       ignore
-        (Dom_events.listen
-           ~capture:true mammoth_outer Dom_events.Typ.scroll
-           (fun _ _ -> ignore (update ()) ; true)) ;
-      ignore
-        (Dom_events.listen
-           ~capture:true elephant_outer Dom_events.Typ.scroll
-           (fun _ _ -> ignore (update ()) ; true)) ;
+        (Dom_events.listen ~capture:true
+           Dom_html.document Dom_events.Typ.scroll
+           (fun _ ev ->
+              ignore (update ()) ; false)) ;
       Lwt.return ()) ;
   { state ; stop ; listeners }
 
